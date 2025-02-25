@@ -31,7 +31,8 @@ const schema = new mongoose.Schema(
     lastUpdate: { type: Date, default: Date.now },
     max_number: { type: Number },
     balance: { type: Object },
-    userCausaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserCausa' }]
+    userCausaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserCausa' }],
+    origin: { type: String, enum: ["system", "users"] }
   },
   {
     collection: "causas-civil",
@@ -57,7 +58,7 @@ schema.pre('save', function (next) {
   }
 });
 
-schema.pre(['updateOne', 'findOneAndUpdate'], async function(next) {
+schema.pre(['updateOne', 'findOneAndUpdate'], async function (next) {
   const update = this.getUpdate();
   if (update.movimiento || update.$set?.movimiento) {
     const movimiento = update.movimiento || update.$set.movimiento;
