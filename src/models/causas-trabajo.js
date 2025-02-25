@@ -52,7 +52,6 @@ schema.pre('save', function (next) {
     }
     next();
   } catch (error) {
-    logger.error(`Error en pre-save middleware: ${error}`);
     next(error); // Propaga el error
   }
 });

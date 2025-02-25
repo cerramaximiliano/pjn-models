@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { logger } = require("../config/pino");
 
 const schema = new mongoose.Schema(
   {
@@ -54,7 +53,6 @@ schema.pre('save', function (next) {
     }
     next();
   } catch (error) {
-    logger.error(`Error en pre-save middleware: ${error}`);
     next(error); // Propaga el error
   }
 });
