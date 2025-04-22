@@ -32,7 +32,22 @@ const schema = new mongoose.Schema(
     max_number: { type: Number },
     balance: { type: Object },
     userCausaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserCausa' }],
-    origin: { type: String, enum: ["system", "users"] }
+    folderIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FolderId' }],
+    source: {
+      type: String,
+      default: "scraping"
+    },
+    verified: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    isValid: {
+      type: Boolean,
+      default: null,
+      index: true
+    }
+
   },
   {
     collection: "causas-trabajo",
@@ -53,11 +68,12 @@ schema.pre('save', function (next) {
     }
     next();
   } catch (error) {
+    logger.error(`Error en pre-save middleware: ${error}`);
     next(error); // Propaga el error
   }
 });
 
-schema.pre(['updateOne', 'findOneAndUpdate'], async function(next) {
+schema.pre(['updateOne', 'findOneAndUpdate'], async function (next) {
   const update = this.getUpdate();
   if (update.movimiento || update.$set?.movimiento) {
     const movimiento = update.movimiento || update.$set.movimiento;
