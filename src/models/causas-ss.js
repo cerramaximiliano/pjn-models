@@ -51,7 +51,11 @@ const schema = new mongoose.Schema(
       type: Boolean,
       default: false,
       index: true
-  }
+    },
+    userUpdatesEnabled: [{
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      enabled: { type: Boolean, default: true }
+    }]
   },
   {
     collection: "causas-segsocial",
