@@ -26,10 +26,37 @@ const schema = new mongoose.Schema(
     last_check: { 
       type: Date 
     },
+    worker_id: {
+      type: String,
+      required: true,
+      default: 'main'
+    },
+    range_start: {
+      type: Number,
+      default: 1
+    },
+    range_end: {
+      type: Number
+    },
+    enabled: {
+      type: Boolean,
+      default: true
+    },
     balance: {
       twoCaptcha: { 
         type: Boolean, 
         default: true 
+      },
+      startOfDay: {
+        type: Number,
+        default: 0
+      },
+      current: {
+        type: Number,
+        default: 0
+      },
+      lastUpdate: {
+        type: Date
       }
     }
   },

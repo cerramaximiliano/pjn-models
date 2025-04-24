@@ -47,6 +47,11 @@ const schema = new mongoose.Schema(
             type: Boolean,
             default: null,
             index: true
+        },
+        update: {
+            type: Boolean,
+            default: false,
+            index: true
         }
     },
     {
