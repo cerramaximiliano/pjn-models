@@ -55,6 +55,15 @@ const schema = new mongoose.Schema(
     userUpdatesEnabled: [{
       userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       enabled: { type: Boolean, default: true }
+    }],
+    updateHistory: [{
+      timestamp: { type: Date, required: true },
+      source: { type: String, required: true },
+      movimientosAdded: { type: Number, default: 0 },
+      movimientosTotal: { type: Number, default: 0 },
+      updateType: { type: String, enum: ['create', 'update', 'verify'], required: true },
+      success: { type: Boolean, default: true },
+      details: { type: Object }
     }]
   },
   {
