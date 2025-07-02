@@ -7,7 +7,7 @@ const schema = new mongoose.Schema(
     number: { type: Number },
     caratula: { type: String },
     info: { type: String },
-    fuero: { type: String, default: "Laboral" },
+    fuero: { type: String, default: "CNT" },
     objeto: {
       type: String,
       set: function (value) {

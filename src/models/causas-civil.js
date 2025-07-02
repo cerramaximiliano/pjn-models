@@ -8,7 +8,7 @@ const schema = new mongoose.Schema(
         number: { type: Number },
         caratula: { type: String },
         info: { type: String },
-        fuero: { type: String, default: "Civil" },
+        fuero: { type: String, default: "CIV" },
         objeto: {
             type: String,
             set: function (value) {
