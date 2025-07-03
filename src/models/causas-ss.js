@@ -64,7 +64,22 @@ const schema = new mongoose.Schema(
       updateType: { type: String, enum: ['create', 'update', 'verify'], required: true },
       success: { type: Boolean, default: true },
       details: { type: Object }
-    }]
+    }],
+    emailsScraped: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    emailExtractionDate: {
+      type: Date
+    },
+    emailsFound: {
+      type: Boolean,
+      default: false
+    },
+    emailExtractionError: {
+      type: String
+    }
   },
   {
     collection: "causas-segsocial",
