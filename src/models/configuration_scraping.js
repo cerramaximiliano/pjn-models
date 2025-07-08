@@ -181,6 +181,12 @@ const schema = new mongoose.Schema(
           proxy: String  // formato: "http://user:password@host:port"
         }
       }
+    },
+    notification: {
+      startupEmail: {
+        type: Boolean,
+        default: false,
+      }
     }
   },
   {
