@@ -187,6 +187,12 @@ const schema = new mongoose.Schema(
         type: Boolean,
         default: false,
       }
+    },
+    captcha: {
+      skipResolution: {
+        type: Boolean,
+        default: false
+      }
     }
   },
   {
