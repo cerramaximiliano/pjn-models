@@ -2,29 +2,29 @@ const mongoose = require("mongoose");
 
 const schema = new mongoose.Schema(
   {
-    fuero: { 
-      type: String, 
+    fuero: {
+      type: String,
       required: true,
-      enum: ['CIV', 'CSS', 'CNT'] 
+      enum: ['CIV', 'CSS', 'CNT']
     },
-    year: { 
-      type: Number, 
-      required: true 
+    year: {
+      type: Number,
+      required: true
     },
-    number: { 
-      type: Number, 
-      required: true 
+    number: {
+      type: Number,
+      required: true
     },
-    max_number: { 
-      type: Number, 
-      required: true 
+    max_number: {
+      type: Number,
+      required: true
     },
-    consecutive_not_found: { 
-      type: Number, 
-      default: 0 
+    consecutive_not_found: {
+      type: Number,
+      default: 0
     },
-    last_check: { 
-      type: Date 
+    last_check: {
+      type: Date
     },
     worker_id: {
       type: String,
@@ -47,9 +47,9 @@ const schema = new mongoose.Schema(
       default: false
     },
     balance: {
-      twoCaptcha: { 
-        type: Boolean, 
-        default: true 
+      twoCaptcha: {
+        type: Boolean,
+        default: true
       },
       startOfDay: {
         type: Number,
@@ -116,6 +116,69 @@ const schema = new mongoose.Schema(
         }],
         lastUpdated: {
           type: Date
+        }
+      }
+    },
+    proxy: {
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      // Donde se aplica el proxy
+      applyTo: {
+        puppeteer: {
+          type: Boolean,
+          default: false
+        },
+        captchaService: {
+          type: Boolean,
+          default: false
+        }
+      },
+      // Configuración del proxy
+      service: {
+        name: {
+          type: String,
+          enum: ['bright_data', 'custom', 'none'],
+          default: 'none'
+        },
+        host: {
+          type: String
+        },
+        port: {
+          type: Number
+        },
+        username: {
+          type: String
+        },
+        password: {
+          type: String
+        },
+        protocol: {
+          type: String,
+          enum: ['http', 'https', 'socks5'],
+          default: 'http'
+        }
+      },
+      // Configuración específica para servicios de captcha
+      captchaConfig: {
+        // Para 2captcha
+        twoCaptcha: {
+          proxy: String,      // formato: "login:password@123.123.123.123:3128"
+          proxytype: {        // tipo de proxy para 2captcha
+            type: String,
+            enum: ['HTTP', 'HTTPS', 'SOCKS4', 'SOCKS5'],
+            default: 'HTTP'
+          }
+        },
+        // Para Capsolver
+        capsolver: {
+          type: {
+            type: String,
+            enum: ['ReCaptchaV2Task', 'ReCaptchaV2TaskProxyLess'],
+            default: 'ReCaptchaV2TaskProxyLess'
+          },
+          proxy: String  // formato: "http://user:password@host:port"
         }
       }
     }
