@@ -59,12 +59,26 @@ const schema = new mongoose.Schema(
         }],
         updateHistory: [{
             timestamp: { type: Date, required: true },
-            source: { type: String, required: true },
+            source: {
+                type: String,
+                enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual'],
+                required: true
+            },
             movimientosAdded: { type: Number, default: 0 },
             movimientosTotal: { type: Number, default: 0 },
-            updateType: { type: String, enum: ['create', 'update', 'verify'], required: true },
+            updateType: { type: String, enum: ['create', 'update', 'verify', 'error'], required: true },
             success: { type: Boolean, default: true },
-            details: { type: Object }
+            movimientosAdded: Number,
+            movimientosTotal: Number,
+            details: {
+                number: String,
+                year: String,
+                fuero: String,
+                juzgado: Number,
+                captchaSkipped: Boolean,
+                message: String,
+                previousMovimientosCount: Number
+            }
         }],
         emailsScraped: {
             type: Boolean,
@@ -80,7 +94,22 @@ const schema = new mongoose.Schema(
         },
         emailExtractionError: {
             type: String
-        }
+        },
+        captchaSkipped: {
+            type: Boolean,
+            default: false
+        },
+        error: {
+            type: {
+                type: String,
+                enum: ['captcha_failed', 'captcha_skipped', 'captcha_skipped_error', 'page_load_timeout', 'network_error',
+                    'navigation_error', 'data_extraction_error'],
+                required: false
+            },
+            message: String,
+            timestamp: Date,
+            availableData: [mongoose.Schema.Types.Mixed] // Array para guardar cualquier dato disponible
+        },
     },
     {
         collection: "causas-civil",
