@@ -34,6 +34,9 @@ const schema = new mongoose.Schema(
             enum: ['juzgado-secretaria', 'sala-vocalia', 'mixto'],
             default: 'juzgado-secretaria'
         },
+        
+        // Texto completo de la organización
+        organizacionTextoCompleto: { type: String },
         movimiento: { type: Array },
         movimientosCount: {
             type: Number,

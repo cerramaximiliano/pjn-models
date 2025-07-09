@@ -29,6 +29,9 @@ const CausasCSJSchema = new Schema({
     default: 'juzgado-secretaria'
   },
   
+  // Texto completo de la organización
+  organizacionTextoCompleto: { type: String },
+  
   // Información del expediente
   objeto: { type: String },
   info: { type: String },
