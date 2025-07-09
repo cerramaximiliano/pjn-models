@@ -13,6 +13,17 @@ const CausasCCFSchema = new Schema({
   juzgado: { type: Number, default: 0 },
   secretaria: { type: Number, default: 0 },
   
+  // Agregar nuevos campos
+  sala: { type: Number, default: 0 },
+  vocalia: { type: Number, default: 0 },
+  
+  // Campo para identificar el tipo
+  tipoOrganizacion: {
+    type: String,
+    enum: ['juzgado-secretaria', 'sala-vocalia', 'mixto'],
+    default: 'juzgado-secretaria'
+  },
+  
   // Información del expediente
   objeto: { type: String },
   info: { type: String },

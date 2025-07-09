@@ -23,6 +23,17 @@ const schema = new mongoose.Schema(
         },
         juzgado: { type: Number },
         secretaria: { type: Number },
+        
+        // Agregar nuevos campos
+        sala: { type: Number, default: 0 },
+        vocalia: { type: Number, default: 0 },
+        
+        // Campo para identificar el tipo
+        tipoOrganizacion: {
+            type: String,
+            enum: ['juzgado-secretaria', 'sala-vocalia', 'mixto'],
+            default: 'juzgado-secretaria'
+        },
         movimiento: { type: Array },
         movimientosCount: {
             type: Number,
