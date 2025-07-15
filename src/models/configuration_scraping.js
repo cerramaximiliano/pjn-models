@@ -192,6 +192,41 @@ const schema = new mongoose.Schema(
       skipResolution: {
         type: Boolean,
         default: false
+      },
+      apiKeys: {
+        twocaptcha: {
+          key: {
+            type: String,
+            default: ''
+          },
+          enabled: {
+            type: Boolean,
+            default: true
+          }
+        },
+        capsolver: {
+          key: {
+            type: String,
+            default: ''
+          },
+          enabled: {
+            type: Boolean,
+            default: false
+          }
+        }
+      },
+      defaultProvider: {
+        type: String,
+        enum: ['2captcha', 'capsolver'],
+        default: '2captcha'
+      },
+      minimumBalance: {
+        type: Number,
+        default: 0.5
+      },
+      fallbackEnabled: {
+        type: Boolean,
+        default: false
       }
     }
   },
