@@ -56,6 +56,8 @@ const CausasCSJSchema = new Schema({
   // Control de actualizaciones
   hash: { type: String },
   updateCount: { type: Number, default: 0 },
+  lastCheckedDate: { type: Date },
+  dailyUpdateCount: { type: Number, default: 0 },
   
   // Origen de los datos
   source: { type: String, enum: ['scraping', 'scraping-unified', 'api', 'manual'], default: 'scraping-unified' },

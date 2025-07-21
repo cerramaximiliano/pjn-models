@@ -123,7 +123,9 @@ const schema = new mongoose.Schema(
       timestamp: Date,
       availableData: [mongoose.Schema.Types.Mixed] // Array para guardar cualquier dato disponible
     },
-    isError: { type: Boolean }
+    isError: { type: Boolean },
+    lastCheckedDate: { type: Date },
+    dailyUpdateCount: { type: Number, default: 0 }
   },
   {
     collection: "causas-comercial",
