@@ -160,4 +160,8 @@ schema.pre(['updateOne', 'findOneAndUpdate'], async function (next) {
     }
     next();
 });
+
+// Índices compuestos
+schema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
+
 module.exports = mongoose.model("Causas", schema);

@@ -74,7 +74,7 @@ const CausasCCCSchema = new Schema({
 });
 
 // Índices compuestos
-CausasCCCSchema.index({ number: 1, year: 1, fuero: 1 });
+CausasCCCSchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
 CausasCCCSchema.index({ juzgado: 1, secretaria: 1 });
 CausasCCCSchema.index({ verified: 1, isError: 1 });
 

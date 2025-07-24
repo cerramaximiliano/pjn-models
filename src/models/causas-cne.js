@@ -67,7 +67,7 @@ const CausasCNESchema = new Schema({
 });
 
 // Índices compuestos
-CausasCNESchema.index({ number: 1, year: 1, fuero: 1 });
+CausasCNESchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
 CausasCNESchema.index({ juzgado: 1, secretaria: 1 });
 CausasCNESchema.index({ verified: 1, isError: 1 });
 

@@ -72,7 +72,7 @@ const CausasCPESchema = new Schema({
 });
 
 // Índices compuestos
-CausasCPESchema.index({ number: 1, year: 1, fuero: 1 });
+CausasCPESchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
 CausasCPESchema.index({ juzgado: 1, secretaria: 1 });
 CausasCPESchema.index({ verified: 1, isError: 1 });
 

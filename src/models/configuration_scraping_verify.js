@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const schema = new mongoose.Schema(
   {
-    fuero: { 
-      type: String, 
+    fuero: {
+      type: String,
       required: true,
-      enum: ['CIV', 'CSS', 'CNT'] 
+      enum: ['CIV', 'CSS', 'CNT']
     },
     worker_id: {
       type: String,
@@ -18,7 +18,7 @@ const schema = new mongoose.Schema(
       default: 'all',
       required: true
     },
-    last_check: { 
+    last_check: {
       type: Date,
       default: new Date()
     },
@@ -39,9 +39,9 @@ const schema = new mongoose.Schema(
       default: true
     },
     balance: {
-      twoCaptcha: { 
-        type: Boolean, 
-        default: true 
+      twoCaptcha: {
+        type: Boolean,
+        default: true
       }
     },
     batch_size: {
@@ -49,6 +49,13 @@ const schema = new mongoose.Schema(
       default: 5,
       min: 1,
       max: 20
+    },
+    captcha: {
+      defaultProvider: {
+        type: String,
+        enum: ['2captcha', 'capsolver'],
+        default: '2captcha'
+      }
     }
   },
   {

@@ -72,7 +72,7 @@ const CausasCSJSchema = new Schema({
 });
 
 // Índices compuestos
-CausasCSJSchema.index({ number: 1, year: 1, fuero: 1 });
+CausasCSJSchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
 CausasCSJSchema.index({ verified: 1, isError: 1 });
 
 module.exports = mongoose.model('CausasCSJ', CausasCSJSchema);

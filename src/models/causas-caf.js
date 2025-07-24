@@ -67,7 +67,7 @@ const CausasCAFSchema = new Schema({
 });
 
 // Índices compuestos
-CausasCAFSchema.index({ number: 1, year: 1, fuero: 1 });
+CausasCAFSchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
 CausasCAFSchema.index({ juzgado: 1, secretaria: 1 });
 CausasCAFSchema.index({ verified: 1, isError: 1 });
 
