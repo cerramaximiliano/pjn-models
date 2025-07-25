@@ -125,7 +125,29 @@ const schema = new mongoose.Schema(
     },
     isError: { type: Boolean },
     lastCheckedDate: { type: Date },
-    dailyUpdateCount: { type: Number, default: 0 }
+    dailyUpdateCount: { type: Number, default: 0 },
+    
+    // Bloqueo para procesamiento
+    processingLock: {
+      type: {
+        workerId: {
+          type: String,
+          required: true
+        },
+        lockedAt: {
+          type: Date,
+          required: true,
+          default: Date.now
+        },
+        expiresAt: {
+          type: Date,
+          required: true,
+          index: true
+        }
+      },
+      required: false,
+      default: undefined
+    }
   },
   {
     collection: "causas-segsocial",
@@ -163,5 +185,17 @@ schema.pre(['updateOne', 'findOneAndUpdate'], async function (next) {
 
 // Índices compuestos
 schema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
+schema.index({ 'processingLock.expiresAt': 1 });
+schema.index({ 'processingLock.workerId': 1 });
+
+// Índice compuesto para la query principal del app-update-worker
+schema.index({
+    source: 1,
+    verified: 1,
+    isValid: 1,
+    update: 1,
+    lastUpdate: 1,
+    'processingLock.expiresAt': 1
+});
 
 module.exports = mongoose.model("CausasSegSocial", schema);

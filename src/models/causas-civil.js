@@ -23,18 +23,18 @@ const schema = new mongoose.Schema(
         },
         juzgado: { type: Number },
         secretaria: { type: Number },
-        
+
         // Agregar nuevos campos
         sala: { type: Number, default: 0 },
         vocalia: { type: Number, default: 0 },
-        
+
         // Campo para identificar el tipo
         tipoOrganizacion: {
             type: String,
             enum: ['juzgado-secretaria', 'sala-vocalia', 'mixto'],
             default: 'juzgado-secretaria'
         },
-        
+
         // Texto completo de la organización
         organizacionTextoCompleto: { type: String },
         movimiento: { type: Array },
@@ -66,6 +66,26 @@ const schema = new mongoose.Schema(
             type: Boolean,
             default: false,
             index: true
+        },
+        processingLock: {
+            type: {
+                workerId: {
+                    type: String,
+                    required: true
+                },
+                lockedAt: {
+                    type: Date,
+                    required: true,
+                    default: Date.now
+                },
+                expiresAt: {
+                    type: Date,
+                    required: true,
+                    index: true
+                }
+            },
+            required: false,
+            default: undefined
         },
         userUpdatesEnabled: [{
             userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -163,5 +183,19 @@ schema.pre(['updateOne', 'findOneAndUpdate'], async function (next) {
 
 // Índices compuestos
 schema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
+
+// NUEVOS ÍNDICES para optimizar queries con processingLock
+schema.index({ 'processingLock.expiresAt': 1 });
+schema.index({ 'processingLock.workerId': 1 });
+
+// Índice compuesto para la query principal del app-update-worker
+schema.index({
+    source: 1,
+    verified: 1,
+    isValid: 1,
+    update: 1,
+    lastUpdate: 1,
+    'processingLock.expiresAt': 1
+});
 
 module.exports = mongoose.model("Causas", schema);

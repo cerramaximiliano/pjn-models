@@ -60,7 +60,32 @@ const CausasCNESchema = new Schema({
   
   // Timestamps
   date: { type: Date, default: Date.now },
-  lastUpdate: { type: Date, default: Date.now }
+  lastUpdate: { type: Date, default: Date.now },
+  
+  // Bloqueo para procesamiento
+  processingLock: {
+    type: {
+      workerId: {
+        type: String,
+        required: true
+      },
+      lockedAt: {
+        type: Date,
+        required: true,
+        default: Date.now
+      },
+      expiresAt: {
+        type: Date,
+        required: true,
+        index: true
+      }
+    },
+    required: false,
+    default: undefined
+  },
+  
+  // Control de actualizaciones
+  update: { type: Boolean, default: true }
 }, {
   timestamps: true,
   collection: 'causas_cne'
@@ -70,5 +95,17 @@ const CausasCNESchema = new Schema({
 CausasCNESchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
 CausasCNESchema.index({ juzgado: 1, secretaria: 1 });
 CausasCNESchema.index({ verified: 1, isError: 1 });
+CausasCNESchema.index({ 'processingLock.expiresAt': 1 });
+CausasCNESchema.index({ 'processingLock.workerId': 1 });
+
+// Índice compuesto para la query principal del app-update-worker
+CausasCNESchema.index({
+    source: 1,
+    verified: 1,
+    isValid: 1,
+    update: 1,
+    lastUpdate: 1,
+    'processingLock.expiresAt': 1
+});
 
 module.exports = mongoose.model('CausasCNE', CausasCNESchema);
