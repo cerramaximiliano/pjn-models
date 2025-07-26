@@ -83,6 +83,45 @@ const schema = new mongoose.Schema(
           }
         }
       },
+    },
+    updateProgress: {
+      type: {
+        // Documentos elegibles al inicio del día/ciclo
+        totalEligible: {
+          type: Number,
+          default: 0
+        },
+        // Documentos ya procesados en el día/ciclo actual
+        processedToday: {
+          type: Number,
+          default: 0
+        },
+        // Última vez que se calculó el total elegible
+        lastEligibleCalculation: {
+          type: Date,
+          default: Date.now
+        },
+        // Inicio del ciclo actual (para saber cuándo resetear)
+        currentCycleStart: {
+          type: Date,
+          default: Date.now
+        },
+        // Porcentaje de completitud
+        completionPercentage: {
+          type: Number,
+          default: 0,
+          min: 0,
+          max: 100
+        }
+      },
+      required: false,
+      default: {
+        totalEligible: 0,
+        processedToday: 0,
+        lastEligibleCalculation: new Date(),
+        currentCycleStart: new Date(),
+        completionPercentage: 0
+      }
     }
   },
   {
@@ -90,5 +129,11 @@ const schema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+
+  schema.index({ worker_id: 1 }, { unique: true });
+  schema.index({ update_mode: 1, enabled: 1 });
+  schema.index({ 'updateProgress.completionPercentage': 1 });
+  schema.index({ 'updateProgress.currentCycleStart': 1 });
 
 module.exports = mongoose.model("ConfiguracionAppUpdate", schema);
