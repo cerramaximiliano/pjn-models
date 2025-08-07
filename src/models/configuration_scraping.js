@@ -228,7 +228,61 @@ const schema = new mongoose.Schema(
         type: Boolean,
         default: false
       }
-    }
+    },
+    rangeHistory: [{
+      version: {
+        type: Number,
+        required: true
+      },
+      range_start: {
+        type: Number,
+        required: true
+      },
+      range_end: {
+        type: Number,
+        required: true
+      },
+      year: {
+        type: String,
+        required: true
+      },
+      completedAt: {
+        type: Date,
+        required: true
+      },
+      lastProcessedNumber: {
+        type: Number,
+        required: true
+      },
+      documentsProcessed: {
+        type: Number,
+        default: 0
+      },
+      documentsFound: {
+        type: Number,
+        default: 0
+      },
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      completionEmailSent: {
+        type: Boolean,
+        default: false
+      },
+      captchaStats: {
+        totalCaptchas: Number,
+        totalCaptchasFailed: Number,
+        totalCost: Number,
+        provider: String
+      },
+      startedAt: {
+        type: Date
+      },
+      duration: {
+        type: String
+      }
+    }]
   },
   {
     collection: "configuracion-scraping",
