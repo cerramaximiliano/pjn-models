@@ -23,6 +23,7 @@ const schema = new mongoose.Schema(
         },
         juzgado: { type: Number },
         secretaria: { type: Number },
+        juzgadoVerificado: { type: Boolean, default: false },
 
         // Agregar nuevos campos
         sala: { type: Number, default: 0 },

@@ -12,6 +12,7 @@ const CausasCAFSchema = new Schema({
   // Datos del juzgado
   juzgado: { type: Number, default: 0 },
   secretaria: { type: Number, default: 0 },
+  juzgadoVerificado: { type: Boolean, default: false },
 
   // Agregar nuevos campos
   sala: { type: Number, default: 0 },
