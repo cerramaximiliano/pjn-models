@@ -53,6 +53,46 @@ const CausasCNESchema = new Schema({
     fecha: { type: Date },
     descripcion: { type: String }
   }],
+
+  // INSTANCIA ORIGEN
+  instanciaOrigen: {
+    tipo: { type: String, enum: ['JUZGADO', 'CAMARA'] },
+    juzgado: { type: Number },
+    secretaria: { type: Number },
+    sala: { type: Number },
+    vocalia: { type: Number },
+    organismo: { type: String },
+    textoCompleto: { type: String },
+    fechaPrimerMovimiento: { type: Date },
+    fuenteDatos: { type: String, enum: ['DETALLE_MOVIMIENTO', 'PDF_EXTRACTION'] },
+    movimientoFuente: {
+      tipo: { type: String },
+      fecha: { type: Date },
+      url: { type: String }
+    }
+  },
+
+  // INSTANCIA REVISORA
+  instanciaRevisora: {
+    tipo: { type: String, enum: ['CAMARA', 'CORTE_SUPREMA'] },
+    sala: { type: Number },
+    vocalia: { type: Number },
+    secretaria: { type: Number },
+    organismo: { type: String },
+    textoCompleto: { type: String },
+    fechaPrimerMovimiento: { type: Date },
+    fuenteDatos: { type: String, enum: ['DETALLE_MOVIMIENTO', 'PDF_EXTRACTION'] },
+    movimientoFuente: {
+      tipo: { type: String },
+      fecha: { type: Date },
+      url: { type: String }
+    }
+  },
+
+  // FLAGS DE VERIFICACIÓN DE INSTANCIAS
+  instanciasVerificadas: { type: Boolean, default: false },
+  instanciasVerificacionFecha: { type: Date },
+  instanciasVerificacionMetodo: { type: String },
   
   // Control de actualizaciones
   hash: { type: String },
