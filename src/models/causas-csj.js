@@ -18,6 +18,11 @@ const CausasCSJSchema = new Schema({
   juzgado: { type: Number, default: 0 },
   secretaria: { type: Number, default: 0 },
   juzgadoVerificado: { type: Boolean, default: false },
+  juzgadoCorreccionMetodo: { 
+    type: String, 
+    enum: ['PDF_EXTRACTION', 'ORIGINAL_VALID'],
+    required: false
+  },
   
   // Agregar nuevos campos
   sala: { type: Number, default: 0 },

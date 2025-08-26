@@ -23,6 +23,11 @@ const schema = new mongoose.Schema(
     juzgado: { type: Number },
     secretaria: { type: Number },
     juzgadoVerificado: { type: Boolean, default: false },
+    juzgadoCorreccionMetodo: { 
+      type: String, 
+      enum: ['PDF_EXTRACTION', 'ORIGINAL_VALID'],
+      required: false
+    },
     
     // Agregar nuevos campos
     sala: { type: Number, default: 0 },
