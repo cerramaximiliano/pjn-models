@@ -61,7 +61,7 @@ const CausasCPESchema = new Schema({
 
   // INSTANCIA ORIGEN
   instanciaOrigen: {
-    tipo: { type: String, enum: ['JUZGADO', 'CAMARA'] },
+    tipo: { type: String },
     juzgado: { type: Number },
     secretaria: { type: Number },
     sala: { type: Number },
@@ -69,7 +69,7 @@ const CausasCPESchema = new Schema({
     organismo: { type: String },
     textoCompleto: { type: String },
     fechaPrimerMovimiento: { type: Date },
-    fuenteDatos: { type: String, enum: ['DETALLE_MOVIMIENTO', 'PDF_EXTRACTION'] },
+    fuenteDatos: { type: String },
     movimientoFuente: {
       tipo: { type: String },
       fecha: { type: Date },
@@ -79,14 +79,14 @@ const CausasCPESchema = new Schema({
 
   // INSTANCIA REVISORA
   instanciaRevisora: {
-    tipo: { type: String, enum: ['CAMARA', 'CORTE_SUPREMA'] },
+    tipo: { type: String },
     sala: { type: Number },
     vocalia: { type: Number },
     secretaria: { type: Number },
     organismo: { type: String },
     textoCompleto: { type: String },
     fechaPrimerMovimiento: { type: Date },
-    fuenteDatos: { type: String, enum: ['DETALLE_MOVIMIENTO', 'PDF_EXTRACTION'] },
+    fuenteDatos: { type: String },
     movimientoFuente: {
       tipo: { type: String },
       fecha: { type: Date },
@@ -94,10 +94,67 @@ const CausasCPESchema = new Schema({
     }
   },
 
-  // FLAGS DE VERIFICACIÓN DE INSTANCIAS
-  instanciasVerificadas: { type: Boolean, default: false },
-  instanciasVerificacionFecha: { type: Date },
-  instanciasVerificacionMetodo: { type: String },
+  // INSTANCIA EXTRAORDINARIA
+  instanciaExtraordinaria: {
+    tipo: { type: String },
+    secretaria: { type: Number },
+    organismo: { type: String },
+    textoCompleto: { type: String },
+    fechaPrimerMovimiento: { type: Date },
+    fuenteDatos: { type: String },
+    movimientoFuente: {
+      tipo: { type: String },
+      fecha: { type: Date },
+      url: { type: String }
+    }
+  },
+
+  // SISTEMA DE VERIFICACIÓN COMPLETO
+  verificacionInstancias: {
+    // Verificación por nivel
+    origenVerificada: { type: Boolean },
+    origenFecha: { type: Date },
+    origenIntentos: { type: Number },
+
+    revisoraVerificada: { type: Boolean },
+    revisoraFecha: { type: Date },
+    revisoraIntentos: { type: Number },
+    revisoraPosible: { type: Boolean },
+
+    extraordinariaVerificada: { type: Boolean },
+    extraordinariaFecha: { type: Date },
+    extraordinariaIntentos: { type: Number },
+    extraordinariaPosible: { type: Boolean },
+
+    // Configuración del expediente
+    configuracionInstancias: {
+      tipoInicio: { type: String },
+      maxInstanciasPosibles: { type: Number },
+      instanciasDetectadas: { type: Number },
+      instanciasEsperadas: { type: Number }
+    },
+
+    // Estado de verificación
+    completamenteVerificado: { type: Boolean },
+    parcialmenteVerificado: { type: Boolean },
+    verificacionCompleta: { type: Boolean },
+
+    // Estado del expediente
+    expedienteActivo: { type: Boolean },
+    expedienteFinalizado: { type: Boolean },
+    tieneRecursoExtraordinario: { type: Boolean },
+    tieneApelacion: { type: Boolean },
+
+    // Control de re-verificación
+    requiereReVerificacion: { type: Boolean },
+    motivoReVerificacion: { type: String },
+    proximaVerificacion: { type: Date },
+
+    // Metadata
+    ultimaVerificacion: { type: Date },
+    metodoVerificacion: { type: String },
+    versionEsquema: { type: String }
+  },
   
   // Control de actualizaciones
   hash: { type: String },
