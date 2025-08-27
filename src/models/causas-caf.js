@@ -163,7 +163,28 @@ const CausasCAFSchema = new Schema({
 
   // Timestamps
   date: { type: Date, default: Date.now },
-  lastUpdate: { type: Date, default: Date.now }
+  lastUpdate: { type: Date, default: Date.now },
+  
+  // Bloqueo para procesamiento
+  processingLock: {
+    type: {
+      workerId: {
+        type: String,
+        required: true
+      },
+      lockedAt: {
+        type: Date,
+        required: true,
+        default: Date.now
+      },
+      expiresAt: {
+        type: Date,
+        required: true
+      }
+    },
+    required: false,
+    default: undefined
+  }
 }, {
   timestamps: true,
   collection: 'causas_caf'
