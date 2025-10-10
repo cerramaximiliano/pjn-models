@@ -163,9 +163,18 @@ const CausasCSJSchema = new Schema({
   dailyUpdateCount: { type: Number, default: 0 },
   
   // Origen de los datos
-  source: { type: String, enum: ['scraping', 'scraping-unified', 'api', 'manual'], default: 'scraping-unified' },
+  source: { type: String, enum: ['scraping', 'scraping-unified', 'api', 'manual', 'error_verification_worker', 'recovery_worker'], default: 'scraping-unified' },
   scrapingDate: { type: Date, default: Date.now },
-  
+
+  // Campos de scraping inicial para recovery
+  initialScrapingComplete: {
+    type: Boolean,
+    default: false
+  },
+  initialScrapingError: {
+    type: String
+  },
+
   // Timestamps
   date: { type: Date, default: Date.now },
   lastUpdate: { type: Date, default: Date.now },

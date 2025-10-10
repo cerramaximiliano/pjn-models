@@ -177,12 +177,12 @@ const schema = new mongoose.Schema(
       timestamp: { type: Date, required: true },
       source: {
         type: String,
-        enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual'],
+        enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual', 'error_verification_worker', 'recovery_worker'],
         required: true
       },
       movimientosAdded: { type: Number, default: 0 },
       movimientosTotal: { type: Number, default: 0 },
-      updateType: { type: String, enum: ['create', 'update', 'verify', 'error'], required: true },
+      updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery'], required: true },
       success: { type: Boolean, default: true },
       movimientosAdded: Number,
       movimientosTotal: Number,
@@ -229,7 +229,16 @@ const schema = new mongoose.Schema(
     isError: { type: Boolean },
     lastCheckedDate: { type: Date },
     dailyUpdateCount: { type: Number, default: 0 },
-    
+
+    // Campos de scraping inicial para recovery
+    initialScrapingComplete: {
+      type: Boolean,
+      default: false
+    },
+    initialScrapingError: {
+      type: String
+    },
+
     // Bloqueo para procesamiento
     processingLock: {
       type: {
