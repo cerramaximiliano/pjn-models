@@ -223,4 +223,23 @@ CausasCSJSchema.index({
     'processingLock.expiresAt': 1
 });
 
+// Método estático para manejar errores E11000 (duplicados)
+CausasCSJSchema.statics.safeSave = async function(docData) {
+    try {
+        const newDoc = new this(docData);
+        return await newDoc.save();
+    } catch (error) {
+        if (error.code === 11000) {
+            // Error de clave duplicada - actualizar documento existente
+            const { number, year, fuero } = docData;
+            return await this.findOneAndUpdate(
+                { number, year, fuero },
+                { $set: docData },
+                { new: true, upsert: true }
+            );
+        }
+        throw error;
+    }
+};
+
 module.exports = mongoose.model('CausasCSJ', CausasCSJSchema);
