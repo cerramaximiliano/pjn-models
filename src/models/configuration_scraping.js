@@ -72,7 +72,8 @@ const schema = new mongoose.Schema(
         default: false
       }
     },
-    capsolver: {
+    // Estadísticas para 2captcha
+    twoCaptcha: {
       dailySpent: {
         type: Number,
         default: 0
@@ -82,6 +83,14 @@ const schema = new mongoose.Schema(
         default: 0
       },
       totalSpent: {
+        type: Number,
+        default: 0
+      },
+      totalCost: {
+        type: Number,
+        default: 0
+      },
+      totalCostFailed: {
         type: Number,
         default: 0
       },
@@ -103,12 +112,12 @@ const schema = new mongoose.Schema(
           default: 0
         },
         history: [{
-          milestone: Number,  // En qué número de captcha exitoso se calculó
-          totalSpentAtMilestone: Number,  // Gasto total hasta ese momento
-          successfulCaptchas: Number,  // Captchas exitosos hasta ese momento
-          attemptedCaptchas: Number,  // Captchas intentados hasta ese momento
-          costPer1000Successful: Number,  // Costo por 1000 exitosos
-          costPer1000Real: Number,  // Costo real incluyendo fallidos
+          milestone: Number,
+          totalSpentAtMilestone: Number,
+          successfulCaptchas: Number,
+          attemptedCaptchas: Number,
+          costPer1000Successful: Number,
+          costPer1000Real: Number,
           timestamp: {
             type: Date,
             default: Date.now
@@ -117,6 +126,68 @@ const schema = new mongoose.Schema(
         lastUpdated: {
           type: Date
         }
+      },
+      lastReset: {
+        type: Date
+      }
+    },
+    // Estadísticas para capsolver
+    capsolver: {
+      dailySpent: {
+        type: Number,
+        default: 0
+      },
+      dailyCaptchas: {
+        type: Number,
+        default: 0
+      },
+      totalSpent: {
+        type: Number,
+        default: 0
+      },
+      totalCost: {
+        type: Number,
+        default: 0
+      },
+      totalCostFailed: {
+        type: Number,
+        default: 0
+      },
+      totalCaptchas: {
+        type: Number,
+        default: 0
+      },
+      totalCaptchasAttempted: {
+        type: Number,
+        default: 0
+      },
+      totalCaptchasFailed: {
+        type: Number,
+        default: 0
+      },
+      costPer1000: {
+        current: {
+          type: Number,
+          default: 0
+        },
+        history: [{
+          milestone: Number,
+          totalSpentAtMilestone: Number,
+          successfulCaptchas: Number,
+          attemptedCaptchas: Number,
+          costPer1000Successful: Number,
+          costPer1000Real: Number,
+          timestamp: {
+            type: Date,
+            default: Date.now
+          }
+        }],
+        lastUpdated: {
+          type: Date
+        }
+      },
+      lastReset: {
+        type: Date
       }
     },
     proxy: {
