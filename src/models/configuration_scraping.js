@@ -300,6 +300,45 @@ const schema = new mongoose.Schema(
         default: false
       }
     },
+    // Estadísticas de verificación de documentos
+    verification: {
+      totalAttempted: {
+        type: Number,
+        default: 0
+      },
+      totalVerified: {
+        type: Number,
+        default: 0
+      },
+      totalValid: {
+        type: Number,
+        default: 0
+      },
+      totalInvalid: {
+        type: Number,
+        default: 0
+      },
+      totalVerificationFailed: {
+        type: Number,
+        default: 0
+      },
+      totalCaptchaFailed: {
+        type: Number,
+        default: 0
+      },
+      lastVerificationDate: {
+        type: Date
+      },
+      lastFailureDate: {
+        type: Date
+      },
+      statsStartDate: {
+        type: Date
+      },
+      lastReset: {
+        type: Date
+      }
+    },
     rangeHistory: [{
       version: {
         type: Number,
