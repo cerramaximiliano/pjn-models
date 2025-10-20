@@ -392,7 +392,16 @@ const schema = new mongoose.Schema(
       duration: {
         type: String
       }
-    }]
+    }],
+    // Flags para retry worker - prevenir avance de número
+    skipNumberUpdate: {
+      type: Boolean,
+      default: false
+    },
+    isRetryWorker: {
+      type: Boolean,
+      default: false
+    }
   },
   {
     collection: "configuracion-scraping",
