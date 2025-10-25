@@ -230,14 +230,6 @@ const schema = new mongoose.Schema(
     lastCheckedDate: { type: Date },
     dailyUpdateCount: { type: Number, default: 0 },
 
-    // Campos de scraping inicial para recovery
-    initialScrapingComplete: {
-      type: Boolean,
-      default: false
-    },
-    initialScrapingError: {
-      type: String
-    },
     scrapingProgress: {
       isComplete: {
         type: Boolean,

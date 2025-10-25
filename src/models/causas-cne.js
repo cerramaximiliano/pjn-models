@@ -161,14 +161,6 @@ const CausasCNESchema = new Schema({
   source: { type: String, enum: ['scraping', 'scraping-unified', 'api', 'manual', 'error_verification_worker', 'recovery_worker'], default: 'scraping-unified' },
   scrapingDate: { type: Date, default: Date.now },
 
-  // Campos de scraping inicial para recovery
-  initialScrapingComplete: {
-    type: Boolean,
-    default: false
-  },
-  initialScrapingError: {
-    type: String
-  },
   scrapingProgress: {
     isComplete: {
       type: Boolean,
