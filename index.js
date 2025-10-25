@@ -1,5 +1,6 @@
 module.exports = {
     CausasCivil: require('./src/models/causas-civil'),
+    CausasComercial: require('./src/models/causas-comercial'),
     CausasSegSoc: require("./src/models/causas-ss"),
     CausasTrabajo: require("./src/models/causas-trabajo"),
     CausasCAF: require('./src/models/causas-caf'),         // Contencioso Administrativo Federal
