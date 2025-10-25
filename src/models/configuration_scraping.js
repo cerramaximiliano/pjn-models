@@ -5,7 +5,7 @@ const schema = new mongoose.Schema(
     fuero: {
       type: String,
       required: true,
-      enum: ['CIV', 'CSS', 'CNT']
+      enum: ['CIV', 'CSS', 'CNT', 'COM']
     },
     year: {
       type: Number,

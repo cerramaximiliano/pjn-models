@@ -5,7 +5,7 @@ const schema = new mongoose.Schema(
     fuero: {
       type: String,
       required: true,
-      enum: ['CIV', 'CSS', 'CNT']
+      enum: ['CIV', 'CSS', 'CNT', 'COM']
     },
     worker_id: {
       type: String,
@@ -14,7 +14,7 @@ const schema = new mongoose.Schema(
     },
     verification_mode: {
       type: String,
-      enum: ['all', 'civil', 'ss', 'trabajo'],
+      enum: ['all', 'civil', 'ss', 'trabajo', 'comercial'],
       default: 'all',
       required: true
     },
