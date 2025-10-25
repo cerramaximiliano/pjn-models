@@ -176,11 +176,34 @@ const CausasCCCSchema = new Schema({
   initialScrapingError: {
     type: String
   },
+  scrapingProgress: {
+    isComplete: {
+      type: Boolean,
+      default: false,
+      required: false
+    },
+    totalExpected: {
+      type: Number,
+      default: 0,
+      required: false
+    },
+    totalProcessed: {
+      type: Number,
+      default: 0,
+      required: false
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'in_progress', 'completed', 'partial', 'error'],
+      default: 'pending',
+      required: false
+    }
+  },
 
   // Timestamps
   date: { type: Date, default: Date.now },
   lastUpdate: { type: Date, default: Date.now },
-  
+
   // Bloqueo para procesamiento
   processingLock: {
     type: {
