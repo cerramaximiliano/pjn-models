@@ -268,7 +268,7 @@ const schema = new mongoose.Schema(
             },
             status: {
                 type: String,
-                enum: ['pending', 'in_progress', 'completed', 'partial', 'error'],
+                enum: ['pending', 'in_progress', 'completed', 'partial', 'error', 'invalid'],
                 default: 'pending',
                 required: false
             }
