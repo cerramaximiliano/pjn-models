@@ -197,7 +197,7 @@ const schema = new mongoose.Schema(
             timestamp: { type: Date, required: true },
             source: {
                 type: String,
-                enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual', 'error_verification_worker', 'recovery_worker', 'stuck_documents_worker', 'verify_worker_recovery'],
+                enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual', 'error_verification_worker', 'recovery_worker', 'stuck_documents_worker', 'verify_worker_recovery', 'cache'],
                 required: true
             },
             movimientosAdded: { type: Number, default: 0 },
