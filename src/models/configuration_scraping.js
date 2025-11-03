@@ -401,6 +401,11 @@ const schema = new mongoose.Schema(
     isRetryWorker: {
       type: Boolean,
       default: false
+    },
+    // Flag para indicar configuraciones temporales que no deben contarse como workers reales
+    isTemporary: {
+      type: Boolean,
+      default: false
     }
   },
   {
