@@ -1,6 +1,6 @@
 {
   "name": "pjn-models",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "description": "",
-  "dependencies": {
-    "mongoose": "^8.10.1"
+  "peerDependencies": {
+    "mongoose": "^8.0.0"
   }
 }
