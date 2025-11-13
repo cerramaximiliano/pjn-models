@@ -184,8 +184,10 @@ const schema = new mongoose.Schema(
       movimientosTotal: { type: Number, default: 0 },
       updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery', 'stuck_fix', 'reset_for_reverification'], required: true },
       success: { type: Boolean, default: true },
-      movimientosAdded: Number,
-      movimientosTotal: Number,
+      movimientosDetails: [{
+        fecha: Date,
+        detalle: String
+      }],
       details: {
         number: String,
         year: String,
@@ -193,7 +195,12 @@ const schema = new mongoose.Schema(
         juzgado: Number,
         captchaSkipped: Boolean,
         message: String,
-        previousMovimientosCount: Number
+        previousMovimientosCount: Number,
+        documentId: String,
+        caratulaUpdated: Boolean,
+        objetoUpdated: Boolean,
+        juzgadoUpdated: Boolean,
+        secretariaUpdated: Boolean
       }
     }],
     emailsScraped: {
