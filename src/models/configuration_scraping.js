@@ -23,8 +23,42 @@ const schema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // Total de documentos no encontrados (no se resetea)
+    total_not_found: {
+      type: Number,
+      default: 0
+    },
     // Rango de documentos no encontrados consecutivos
     not_found_range: {
+      start_number: {
+        type: Number,
+        default: null
+      },
+      end_number: {
+        type: Number,
+        default: null
+      },
+      started_at: {
+        type: Date,
+        default: null
+      },
+      updated_at: {
+        type: Date,
+        default: null
+      }
+    },
+    // Contador de errores técnicos consecutivos (captcha, sistema, etc.)
+    consecutive_errors: {
+      type: Number,
+      default: 0
+    },
+    // Total de errores técnicos (no se resetea)
+    total_errors: {
+      type: Number,
+      default: 0
+    },
+    // Rango de documentos con errores técnicos consecutivos
+    error_range: {
       start_number: {
         type: Number,
         default: null
