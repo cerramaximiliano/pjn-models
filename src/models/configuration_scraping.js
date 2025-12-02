@@ -23,6 +23,11 @@ const schema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // Total de documentos encontrados/válidos (no se resetea)
+    total_found: {
+      type: Number,
+      default: 0
+    },
     // Total de documentos no encontrados (no se resetea)
     total_not_found: {
       type: Number,
