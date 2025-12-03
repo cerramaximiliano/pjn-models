@@ -12,9 +12,12 @@ const CausasCAFSchema = new Schema({
       demandado: { type: String },
       actorPlural: { type: Boolean, default: false },
       demandadoPlural: { type: Boolean, default: false },
+      causante: { type: String },
+      esSucesion: { type: Boolean, default: false },
+      tipoSucesion: { type: String },
       tienePartes: { type: Boolean, default: false },
       fechaExtraccion: { type: Date },
-      nombres: [{ type: String }]  // Array para búsqueda indistinta actor/demandado
+      nombres: [{ type: String }]  // Array para búsqueda indistinta actor/demandado/causante
   },
 
   number: { type: String, required: true, index: true },
