@@ -5,6 +5,17 @@ const Schema = mongoose.Schema;
 const CausasCCCSchema = new Schema({
   // Identificación básica
   caratula: { type: String, required: true },
+
+  // PARTES PROCESALES (extraídas de carátula)
+  partes: {
+      actor: { type: String },
+      demandado: { type: String },
+      actorPlural: { type: Boolean, default: false },
+      demandadoPlural: { type: Boolean, default: false },
+      tienePartes: { type: Boolean, default: false },
+      fechaExtraccion: { type: Date }
+  },
+
   number: { type: String, required: true, index: true },
   year: { type: String, required: true, index: true },
   fuero: { type: String, default: 'CCC', index: true },

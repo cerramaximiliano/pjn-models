@@ -6,6 +6,17 @@ const schema = new mongoose.Schema(
     year: { type: Number },
     number: { type: Number },
     caratula: { type: String },
+
+    // PARTES PROCESALES (extraídas de carátula)
+    partes: {
+        actor: { type: String },
+        demandado: { type: String },
+        actorPlural: { type: Boolean, default: false },
+        demandadoPlural: { type: Boolean, default: false },
+        tienePartes: { type: Boolean, default: false },
+        fechaExtraccion: { type: Date }
+    },
+
     info: { type: String },
     fuero: { type: String, default: "CSS" },
     objeto: {
