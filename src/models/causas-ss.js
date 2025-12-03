@@ -14,7 +14,8 @@ const schema = new mongoose.Schema(
         actorPlural: { type: Boolean, default: false },
         demandadoPlural: { type: Boolean, default: false },
         tienePartes: { type: Boolean, default: false },
-        fechaExtraccion: { type: Date }
+        fechaExtraccion: { type: Date },
+        nombres: [{ type: String }]  // Array para búsqueda indistinta actor/demandado
     },
 
     info: { type: String },
