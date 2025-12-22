@@ -13,4 +13,5 @@ module.exports = {
     ConfiguracionScraping: require("./src/models/configuration_scraping"),
     ConfiguracionVerificacion: require("./src/models/configuration_scraping_verify"),
     ConfiguracionAppUpdate: require("./src/models/configuration_scraping_app_update"),
+    ConfiguracionEmailVerification: require("./src/models/configuration_email_verification"),
 };
