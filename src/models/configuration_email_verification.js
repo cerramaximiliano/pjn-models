@@ -119,6 +119,12 @@ const schema = new mongoose.Schema({
     completedAt: {
       type: Date
     }
+  },
+  // Configuración de base de datos de contactos
+  contactsDatabase: {
+    type: String,
+    enum: ['local', 'remote'],
+    default: 'remote'
   }
 }, {
   timestamps: true,
