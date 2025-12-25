@@ -55,7 +55,27 @@ User.find().then(users => console.log(users));
 | Modelo | Descripción |
 |--------|------------|
 | **User** | Almacena información de los usuarios (nombre, email, contraseña). |
-| **Causa** | Representa causas judiciales con detalles como fuero, número y año. |
+| **Causas** | Representa causas judiciales con detalles como fuero, número y año (11 modelos por tipo). |
+| **DocumentEmbedding** | Almacena embeddings vectoriales generados desde PDFs de movimientos para búsqueda semántica. |
+
+### 📌 Modelos de Causas (11 tipos)
+
+El paquete incluye modelos especializados para diferentes tipos de causas judiciales:
+
+- **Primera Instancia:** CIV (Civil), COM (Comercial), CNT (Trabajo), CSS (Seguridad Social)
+- **Cámaras de Apelación:** CPE, CNE, CFP, CCF, CCC, CAF
+- **Corte Suprema:** CSJ
+
+### 🔍 **Nueva Funcionalidad: Búsqueda Vectorial con Embeddings**
+
+Todos los modelos de causas ahora incluyen infraestructura para procesar PDFs de movimientos y generar embeddings vectoriales. Esto permite:
+
+- ✅ Búsqueda semántica en documentos judiciales
+- ✅ Procesamiento de ~50-150M vectores (escala masiva)
+- ✅ Integración con Pinecone para búsqueda vectorial rápida
+- ✅ Tracking completo del estado de procesamiento
+
+**📖 Ver documentación completa:** [`docs/EMBEDDINGS.md`](./docs/EMBEDDINGS.md)
 
 ### 🔍 **Ejemplo: Crear un nuevo usuario**
 
