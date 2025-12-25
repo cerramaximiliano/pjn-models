@@ -57,7 +57,32 @@ const schema = new mongoose.Schema(
     
     // Texto completo de la organización
     organizacionTextoCompleto: { type: String },
-    movimiento: { type: Array },
+
+    // MOVIMIENTOS PROCESALES
+    movimiento: [{
+        fecha: { type: Date },
+        tipo: { type: String },
+        url: { type: String },
+        detalle: { type: String },
+
+        // CAMPOS PARA TRACKING DE EMBEDDINGS
+        embeddingDocId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'DocumentEmbedding',
+            comment: 'Referencia al documento de embedding generado'
+        },
+        embeddingStatus: {
+            type: String,
+            enum: ['pending', 'completed', 'failed', 'skipped', 'no_url'],
+            default: 'pending',
+            comment: 'Estado del procesamiento de embeddings'
+        },
+        embeddingProcessedAt: {
+            type: Date,
+            comment: 'Fecha de procesamiento del embedding'
+        }
+    }],
+
     movimientosCount: {
       type: Number,
       default: 0
@@ -160,6 +185,56 @@ const schema = new mongoose.Schema(
         metodoVerificacion: { type: String },
         versionEsquema: { type: String }
     },
+
+    // ============================================
+    // PROCESAMIENTO DE EMBEDDINGS
+    // ============================================
+    embeddingsProcessing: {
+        // Contadores
+        total: {
+            type: Number,
+            default: 0,
+            comment: 'Total de movimientos'
+        },
+        eligible: {
+            type: Number,
+            default: 0,
+            comment: 'Movimientos con URL válida (elegibles para embeddings)'
+        },
+        processed: {
+            type: Number,
+            default: 0,
+            comment: 'Movimientos ya procesados'
+        },
+        failed: {
+            type: Number,
+            default: 0,
+            comment: 'Movimientos que fallaron en el procesamiento'
+        },
+
+        // Estados generales
+        hasEligible: {
+            type: Boolean,
+            default: false,
+            comment: 'Indica si tiene al menos un movimiento elegible'
+        },
+        allProcessed: {
+            type: Boolean,
+            default: false,
+            comment: 'Indica si todos los movimientos elegibles fueron procesados'
+        },
+
+        // Timestamps
+        lastProcessedAt: {
+            type: Date,
+            comment: 'Última vez que se procesó un movimiento'
+        },
+        lastScanAt: {
+            type: Date,
+            comment: 'Última vez que se escaneó para elegibilidad'
+        }
+    },
+
     lastUpdate: { type: Date, default: Date.now },
     max_number: { type: Number },
     balance: { type: Object },
