@@ -21,7 +21,7 @@ const schema = new mongoose.Schema({
     type: Number,
     default: 100,
     min: 1,
-    max: 1000
+    max: 5000
   },
   schedule: {
     type: String,
