@@ -63,6 +63,9 @@ const CausasCFPSchema = new Schema({
   isValid: { type: Boolean, default: true },
   verified: { type: Boolean, default: false },
   isError: { type: Boolean, default: false },
+  // Indica si la causa es privada (solo accesible con login)
+  // null = no verificado aún, true = privada, false = pública
+  isPrivate: { type: Boolean, default: null, index: true },
   errorType: {
     type: String,
     enum: ['captcha_failed', 'captcha_skipped', 'page_load_timeout', 'network_error', 'navigation_error', 'data_extraction_error'],

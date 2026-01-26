@@ -185,6 +185,13 @@ const schema = new mongoose.Schema(
             default: false,
             index: true
         },
+        // Indica si la causa es privada (solo accesible con login)
+        // null = no verificado aún, true = privada, false = pública
+        isPrivate: {
+            type: Boolean,
+            default: null,
+            index: true
+        },
         processingLock: {
             type: {
                 workerId: {
@@ -294,7 +301,31 @@ const schema = new mongoose.Schema(
                 default: 'pending',
                 required: false
             }
-        }
+        },
+
+        // DATOS ADICIONALES (extra-info-worker)
+        detailsLoaded: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
+        detailsLastUpdate: {
+            type: Date
+        },
+
+        // INTERVINIENTES (partes del expediente)
+        intervinientes: [{
+            tipo: { type: String },           // ACTOR, DEMANDADO, TERCERO, etc.
+            nombre: { type: String },
+            tomoFolio: { type: String },
+            iej: { type: String },            // Estado IEJ de la parte
+            letrados: [{
+                tipo: { type: String },       // LETRADO APODERADO, LETRADO PATROCINANTE, etc.
+                nombre: { type: String },
+                matricula: { type: String },  // Tomo: X Folio: Y - COLEGIO
+                estadoIej: { type: String }   // CONSTITUIDO, NO CONSTITUIDO
+            }]
+        }]
     },
     {
         collection: "causas-civil",
