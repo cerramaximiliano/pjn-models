@@ -207,6 +207,24 @@ const CausasCNESchema = new Schema({
       enum: ['pending', 'in_progress', 'completed', 'partial', 'error', 'invalid'],
       default: 'pending',
       required: false
+    },
+    // Campos para sistema de cooldown de errores
+    consecutiveErrors: {
+      type: Number,
+      default: 0,
+      required: false
+    },
+    lastErrorType: {
+      type: String,
+      required: false
+    },
+    lastErrorAt: {
+      type: Date,
+      required: false
+    },
+    skipUntil: {
+      type: Date,
+      required: false
     }
   },
 
@@ -258,6 +276,9 @@ CausasCNESchema.index({
     lastUpdate: 1,
     'processingLock.expiresAt': 1
 });
+
+// Índice para el sistema de cooldown de errores
+CausasCNESchema.index({ 'scrapingProgress.skipUntil': 1 });
 
 // Método estático para manejar errores E11000 (duplicados)
 CausasCNESchema.statics.safeSave = async function(docData) {
