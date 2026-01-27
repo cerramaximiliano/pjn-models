@@ -64,6 +64,13 @@ const CausasCSJSchema = new Schema({
   // Indica si la causa es privada (solo accesible con login)
   // null = no verificado aún, true = privada, false = pública
   isPrivate: { type: Boolean, default: null, index: true },
+  // Credenciales PJN vinculadas (usuarios que tienen acceso a esta causa via login)
+  linkedCredentials: [{
+    credentialsId: { type: mongoose.Schema.Types.ObjectId, ref: 'PjnCredentials', required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    linkedAt: { type: Date, default: Date.now },
+    source: { type: String, enum: ['sync', 'manual'], default: 'sync' }
+  }],
   errorType: {
     type: String,
     enum: ['captcha_failed', 'captcha_skipped', 'page_load_timeout', 'network_error', 'navigation_error', 'data_extraction_error'],

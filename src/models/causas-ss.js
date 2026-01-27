@@ -191,6 +191,14 @@ const schema = new mongoose.Schema(
       default: null,
       index: true
     },
+    // Credenciales PJN vinculadas (usuarios que tienen acceso a esta causa via login)
+    // Se utiliza para actualizar causas privadas sin buscar por folders
+    linkedCredentials: [{
+      credentialsId: { type: mongoose.Schema.Types.ObjectId, ref: 'PjnCredentials', required: true },
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+      linkedAt: { type: Date, default: Date.now },
+      source: { type: String, enum: ['sync', 'manual'], default: 'sync' }
+    }],
     userUpdatesEnabled: [{
       userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       enabled: { type: Boolean, default: true }
