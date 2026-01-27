@@ -191,6 +191,16 @@ const schema = new mongoose.Schema(
       default: null,
       index: true
     },
+    // Indica si la causa está archivada (todos los movimientos en VER HISTÓRICAS)
+    // null = no verificado aún, true = archivada, false = activa
+    isArchived: {
+      type: Boolean,
+      default: null,
+      index: true
+    },
+    archivedDetectedAt: {
+      type: Date
+    },
     // Credenciales PJN vinculadas (usuarios que tienen acceso a esta causa via login)
     // Se utiliza para actualizar causas privadas sin buscar por folders
     linkedCredentials: [{

@@ -66,6 +66,10 @@ const CausasCCCSchema = new Schema({
   // Indica si la causa es privada (solo accesible con login)
   // null = no verificado aún, true = privada, false = pública
   isPrivate: { type: Boolean, default: null, index: true },
+  // Indica si la causa está archivada (todos los movimientos en VER HISTÓRICAS)
+  // null = no verificado aún, true = archivada, false = activa
+  isArchived: { type: Boolean, default: null, index: true },
+  archivedDetectedAt: { type: Date },
   // Credenciales PJN vinculadas (usuarios que tienen acceso a esta causa via login)
   linkedCredentials: [{
     credentialsId: { type: mongoose.Schema.Types.ObjectId, ref: 'PjnCredentials', required: true },
