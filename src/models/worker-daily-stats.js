@@ -279,18 +279,19 @@ workerDailyStatsSchema.statics.finishRun = async function(fuero, workerType, run
 workerDailyStatsSchema.statics.incrementStats = async function(fuero, workerType, increments) {
   const today = new Date().toISOString().split('T')[0];
 
-  const updateObj = { lastUpdate: new Date() };
+  const incObj = {};
 
   for (const [key, value] of Object.entries(increments)) {
     if (value !== undefined && value !== 0) {
-      updateObj[`stats.${key}`] = value;
+      incObj[`stats.${key}`] = value;
     }
   }
 
   return this.findOneAndUpdate(
     { date: today, fuero, workerType },
     {
-      $inc: updateObj,
+      $inc: incObj,
+      $set: { lastUpdate: new Date() },
       $setOnInsert: { date: today, fuero, workerType, createdAt: new Date() }
     },
     { upsert: true, new: true }
