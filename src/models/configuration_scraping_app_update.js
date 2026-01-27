@@ -84,6 +84,36 @@ const schema = new mongoose.Schema(
         }
       },
     },
+    // Configuración de cooldown para documentos con errores consecutivos
+    errorCooldown: {
+      type: {
+        // Número máximo de errores consecutivos antes de aplicar cooldown
+        maxConsecutiveErrors: {
+          type: Number,
+          default: 3,
+          min: 1,
+          max: 10
+        },
+        // Horas de cooldown después de alcanzar el máximo de errores
+        cooldownHours: {
+          type: Number,
+          default: 6,
+          min: 1,
+          max: 168 // máximo 1 semana
+        },
+        // Habilitar/deshabilitar el sistema de cooldown
+        enabled: {
+          type: Boolean,
+          default: true
+        }
+      },
+      required: false,
+      default: {
+        maxConsecutiveErrors: 3,
+        cooldownHours: 6,
+        enabled: true
+      }
+    },
     updateProgress: {
       type: {
         // Documentos elegibles al inicio del día/ciclo
