@@ -222,7 +222,7 @@ const schema = new mongoose.Schema(
       },
       movimientosAdded: { type: Number, default: 0 },
       movimientosTotal: { type: Number, default: 0 },
-      updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery', 'stuck_fix', 'reset_for_reverification'], required: true },
+      updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery', 'stuck_fix', 'reset_for_reverification', 'link', 'unlink'], required: true },
       success: { type: Boolean, default: true },
       movimientosDetails: [{
         fecha: Date,
