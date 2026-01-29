@@ -75,6 +75,47 @@ const CausasCSJSchema = new Schema({
     linkedAt: { type: Date, default: Date.now },
     source: { type: String, enum: ['sync', 'manual'], default: 'sync' }
   }],
+
+  // Campos para vinculación de folders
+  folderIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Folder' }],
+  userCausaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  userUpdatesEnabled: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    enabled: { type: Boolean, default: true }
+  }],
+  updateHistory: [{
+    timestamp: { type: Date, required: true },
+    source: {
+      type: String,
+      enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual', 'error_verification_worker', 'recovery_worker', 'stuck_documents_worker', 'verify_worker_recovery', 'cache'],
+      required: true
+    },
+    movimientosAdded: { type: Number, default: 0 },
+    movimientosTotal: { type: Number, default: 0 },
+    updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery', 'stuck_fix', 'reset_for_reverification', 'link', 'unlink'], required: true },
+    success: { type: Boolean, default: true },
+    movimientosDetails: [{
+      fecha: Date,
+      detalle: String
+    }],
+    details: {
+      number: String,
+      year: String,
+      fuero: String,
+      juzgado: Number,
+      captchaSkipped: Boolean,
+      message: String,
+      previousMovimientosCount: Number,
+      documentId: String,
+      folderId: String,
+      userId: String,
+      caratulaUpdated: Boolean,
+      objetoUpdated: Boolean,
+      juzgadoUpdated: Boolean,
+      secretariaUpdated: Boolean
+    }
+  }],
+
   errorType: {
     type: String,
     enum: ['captcha_failed', 'captcha_skipped', 'page_load_timeout', 'network_error', 'navigation_error', 'data_extraction_error'],
