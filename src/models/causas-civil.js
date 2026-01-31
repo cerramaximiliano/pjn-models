@@ -211,23 +211,9 @@ const schema = new mongoose.Schema(
             source: { type: String, enum: ['sync', 'manual'], default: 'sync' }
         }],
         processingLock: {
-            type: {
-                workerId: {
-                    type: String,
-                    required: true
-                },
-                lockedAt: {
-                    type: Date,
-                    required: true,
-                    default: Date.now
-                },
-                expiresAt: {
-                    type: Date,
-                    required: true
-                }
-            },
-            required: false,
-            default: undefined
+            workerId: { type: String },
+            lockedAt: { type: Date, default: Date.now },
+            expiresAt: { type: Date }
         },
         userUpdatesEnabled: [{
             userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

@@ -279,23 +279,9 @@ const CausasCNESchema = new Schema({
 
   // Bloqueo para procesamiento
   processingLock: {
-    type: {
-      workerId: {
-        type: String,
-        required: true
-      },
-      lockedAt: {
-        type: Date,
-        required: true,
-        default: Date.now
-      },
-      expiresAt: {
-        type: Date,
-        required: true
-      }
-    },
-    required: false,
-    default: undefined
+    workerId: { type: String },
+    lockedAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date }
   },
   
   // Control de actualizaciones
