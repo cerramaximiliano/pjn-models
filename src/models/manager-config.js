@@ -138,8 +138,7 @@ const managerConfigSchema = new mongoose.Schema({
   timestamps: false
 });
 
-// Índice único para el nombre
-managerConfigSchema.index({ name: 1 }, { unique: true });
+// Nota: El índice único en 'name' ya está definido en el campo con unique: true
 
 /**
  * Obtiene o crea la configuración del manager

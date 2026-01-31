@@ -128,7 +128,8 @@ const workerDailyStatsSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 }, {
   collection: 'worker-daily-stats',
-  timestamps: false // Usamos nuestros propios campos
+  timestamps: false, // Usamos nuestros propios campos
+  suppressReservedKeysWarning: true // 'errors' es una palabra reservada pero la usamos intencionalmente
 });
 
 // Índice compuesto único para evitar duplicados
