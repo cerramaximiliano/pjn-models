@@ -17,5 +17,7 @@ module.exports = {
     ConfiguracionExtraInfo: require("./src/models/configuration_extra_info"),
     Interviniente: require("./src/models/interviniente"),
     WorkerDailyStats: require("./src/models/worker-daily-stats"),
+    WorkerHourlyStats: require("./src/models/worker-hourly-stats"),
+    WorkerDailySummary: require("./src/models/worker-daily-summary"),
     ManagerConfig: require("./src/models/manager-config"),
 };

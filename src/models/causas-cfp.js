@@ -280,6 +280,20 @@ const CausasCFPSchema = new Schema({
     }
   },
 
+  // ESTADÍSTICAS DE ACTUALIZACIÓN (liviano, por documento)
+  updateStats: {
+    count: { type: Number, default: 0 },      // Total actualizaciones (all time)
+    errors: { type: Number, default: 0 },     // Total errores
+    newMovs: { type: Number, default: 0 },    // Total movimientos encontrados
+    avgMs: { type: Number, default: 0 },      // Duración promedio en ms
+    last: { type: Date },                     // Última actualización
+    today: {
+      date: { type: String },               // "2026-02-01"
+      count: { type: Number, default: 0 },
+      hours: [{ type: Number }]             // [8, 11, 14]
+    }
+  },
+
   // Timestamps
   date: { type: Date, default: Date.now },
   lastUpdate: { type: Date, default: Date.now },
