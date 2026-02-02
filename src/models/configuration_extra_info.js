@@ -241,6 +241,72 @@ const schema = new mongoose.Schema(
       }
     },
 
+    // ========== ESTADÍSTICAS DIARIAS (HISTORIAL) ==========
+    dailyStats: [{
+      // Fecha del registro (solo fecha, sin hora) - formato YYYY-MM-DD
+      date: {
+        type: Date,
+        required: true
+      },
+      // Documentos elegibles al inicio del día
+      totalEligible: {
+        type: Number,
+        default: 0
+      },
+      // Documentos procesados ese día
+      processed: {
+        type: Number,
+        default: 0
+      },
+      // Documentos procesados exitosamente
+      success: {
+        type: Number,
+        default: 0
+      },
+      // Documentos con error
+      errors: {
+        type: Number,
+        default: 0
+      },
+      // Documentos pendientes al final del día
+      pending: {
+        type: Number,
+        default: 0
+      },
+      // Intervinientes extraídos ese día
+      intervinientesExtracted: {
+        type: Number,
+        default: 0
+      },
+      // Contactos sincronizados ese día
+      contactsSynced: {
+        type: Number,
+        default: 0
+      },
+      // Desglose por fuero
+      byFuero: {
+        civil: { type: Number, default: 0 },
+        comercial: { type: Number, default: 0 },
+        segsocial: { type: Number, default: 0 },
+        trabajo: { type: Number, default: 0 }
+      },
+      // Ciclos ejecutados ese día
+      cyclesRun: {
+        type: Number,
+        default: 0
+      },
+      // Cuando se creó el registro
+      createdAt: {
+        type: Date,
+        default: Date.now
+      },
+      // Última actualización del registro
+      updatedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+
     // ========== TIMESTAMPS LEGACY (compatibilidad) ==========
     last_check: {
       type: Date,
@@ -485,6 +551,303 @@ schema.statics.getStatsSummary = async function() {
     schedule: config.schedule,
     eligibility: config.eligibility
   };
+};
+
+// ========== MÉTODOS PARA ESTADÍSTICAS DIARIAS ==========
+
+/**
+ * Obtiene la fecha de hoy normalizada (sin hora) en zona horaria de Argentina
+ */
+schema.statics.getTodayDate = function() {
+  const now = new Date();
+  const argentinaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+  // Normalizar a medianoche UTC para comparaciones consistentes
+  return new Date(Date.UTC(argentinaTime.getFullYear(), argentinaTime.getMonth(), argentinaTime.getDate()));
+};
+
+/**
+ * Obtiene o crea el registro de estadísticas del día actual
+ */
+schema.statics.getOrCreateDailyStat = async function(initialEligible = null) {
+  const today = this.getTodayDate();
+
+  const config = await this.findOne({ worker_id: 'extra_info_main' });
+  if (!config) return null;
+
+  // Buscar si ya existe un registro para hoy
+  let todayStat = config.dailyStats.find(stat =>
+    stat.date && new Date(stat.date).getTime() === today.getTime()
+  );
+
+  if (!todayStat) {
+    // Crear nuevo registro para hoy
+    todayStat = {
+      date: today,
+      totalEligible: initialEligible || 0,
+      processed: 0,
+      success: 0,
+      errors: 0,
+      pending: initialEligible || 0,
+      intervinientesExtracted: 0,
+      contactsSynced: 0,
+      byFuero: { civil: 0, comercial: 0, segsocial: 0, trabajo: 0 },
+      cyclesRun: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    await this.findOneAndUpdate(
+      { worker_id: 'extra_info_main' },
+      { $push: { dailyStats: todayStat } }
+    );
+  }
+
+  return todayStat;
+};
+
+/**
+ * Actualiza las estadísticas del día actual después de procesar un documento
+ */
+schema.statics.updateDailyStat = async function(data = {}) {
+  const today = this.getTodayDate();
+
+  const updateFields = {
+    'dailyStats.$.updatedAt': new Date()
+  };
+
+  const incFields = {};
+
+  if (data.processed) incFields['dailyStats.$.processed'] = data.processed;
+  if (data.success) incFields['dailyStats.$.success'] = data.success;
+  if (data.errors) incFields['dailyStats.$.errors'] = data.errors;
+  if (data.intervinientesExtracted) incFields['dailyStats.$.intervinientesExtracted'] = data.intervinientesExtracted;
+  if (data.contactsSynced) incFields['dailyStats.$.contactsSynced'] = data.contactsSynced;
+  if (data.cyclesRun) incFields['dailyStats.$.cyclesRun'] = data.cyclesRun;
+
+  // Actualizar por fuero si se proporciona
+  if (data.fuero) {
+    const fueroKey = `dailyStats.$.byFuero.${data.fuero}`;
+    incFields[fueroKey] = 1;
+  }
+
+  const updateObj = { $set: updateFields };
+  if (Object.keys(incFields).length > 0) {
+    updateObj.$inc = incFields;
+  }
+
+  // Buscar y actualizar el registro de hoy
+  const result = await this.findOneAndUpdate(
+    {
+      worker_id: 'extra_info_main',
+      'dailyStats.date': today
+    },
+    updateObj,
+    { new: true }
+  );
+
+  // Si no existe el registro de hoy, crearlo primero
+  if (!result) {
+    await this.getOrCreateDailyStat();
+    return this.findOneAndUpdate(
+      {
+        worker_id: 'extra_info_main',
+        'dailyStats.date': today
+      },
+      updateObj,
+      { new: true }
+    );
+  }
+
+  return result;
+};
+
+/**
+ * Actualiza el total de documentos elegibles y pendientes para hoy
+ */
+schema.statics.updateDailyEligible = async function(totalEligible, pending = null) {
+  const today = this.getTodayDate();
+
+  // Primero asegurar que existe el registro de hoy
+  await this.getOrCreateDailyStat(totalEligible);
+
+  return this.findOneAndUpdate(
+    {
+      worker_id: 'extra_info_main',
+      'dailyStats.date': today
+    },
+    {
+      $set: {
+        'dailyStats.$.totalEligible': totalEligible,
+        'dailyStats.$.pending': pending !== null ? pending : totalEligible,
+        'dailyStats.$.updatedAt': new Date()
+      }
+    },
+    { new: true }
+  );
+};
+
+/**
+ * Incrementa el contador de ciclos para hoy
+ */
+schema.statics.incrementDailyCycles = async function() {
+  const today = this.getTodayDate();
+
+  // Asegurar que existe el registro de hoy
+  await this.getOrCreateDailyStat();
+
+  return this.findOneAndUpdate(
+    {
+      worker_id: 'extra_info_main',
+      'dailyStats.date': today
+    },
+    {
+      $inc: { 'dailyStats.$.cyclesRun': 1 },
+      $set: { 'dailyStats.$.updatedAt': new Date() }
+    },
+    { new: true }
+  );
+};
+
+/**
+ * Obtiene estadísticas diarias con filtros
+ * @param {Object} options - Opciones de filtrado
+ * @param {Date} options.startDate - Fecha de inicio
+ * @param {Date} options.endDate - Fecha de fin
+ * @param {Number} options.limit - Límite de registros
+ * @param {String} options.sort - 'asc' o 'desc'
+ */
+schema.statics.getDailyStats = async function(options = {}) {
+  const { startDate, endDate, limit = 30, sort = 'desc' } = options;
+
+  const config = await this.findOne({ worker_id: 'extra_info_main' }).lean();
+  if (!config || !config.dailyStats) return [];
+
+  let stats = [...config.dailyStats];
+
+  // Filtrar por rango de fechas
+  if (startDate) {
+    const start = new Date(startDate);
+    stats = stats.filter(s => new Date(s.date) >= start);
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    stats = stats.filter(s => new Date(s.date) <= end);
+  }
+
+  // Ordenar
+  stats.sort((a, b) => {
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
+    return sort === 'desc' ? dateB - dateA : dateA - dateB;
+  });
+
+  // Limitar
+  if (limit > 0) {
+    stats = stats.slice(0, limit);
+  }
+
+  return stats;
+};
+
+/**
+ * Obtiene resumen de estadísticas por período
+ * @param {Number} days - Número de días a considerar
+ */
+schema.statics.getDailyStatsSummary = async function(days = 30) {
+  const config = await this.findOne({ worker_id: 'extra_info_main' }).lean();
+  if (!config || !config.dailyStats) {
+    return {
+      period: days,
+      daysWithActivity: 0,
+      totals: {
+        processed: 0,
+        success: 0,
+        errors: 0,
+        intervinientesExtracted: 0,
+        contactsSynced: 0,
+        cyclesRun: 0
+      },
+      averages: {
+        processedPerDay: 0,
+        successRate: 0,
+        intervinientesPerDoc: 0
+      },
+      byFuero: {
+        civil: 0,
+        comercial: 0,
+        segsocial: 0,
+        trabajo: 0
+      }
+    };
+  }
+
+  // Filtrar últimos N días
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+
+  const recentStats = config.dailyStats.filter(s =>
+    new Date(s.date) >= cutoffDate
+  );
+
+  // Calcular totales
+  const totals = recentStats.reduce((acc, stat) => ({
+    processed: acc.processed + (stat.processed || 0),
+    success: acc.success + (stat.success || 0),
+    errors: acc.errors + (stat.errors || 0),
+    intervinientesExtracted: acc.intervinientesExtracted + (stat.intervinientesExtracted || 0),
+    contactsSynced: acc.contactsSynced + (stat.contactsSynced || 0),
+    cyclesRun: acc.cyclesRun + (stat.cyclesRun || 0)
+  }), {
+    processed: 0,
+    success: 0,
+    errors: 0,
+    intervinientesExtracted: 0,
+    contactsSynced: 0,
+    cyclesRun: 0
+  });
+
+  // Calcular totales por fuero
+  const byFuero = recentStats.reduce((acc, stat) => ({
+    civil: acc.civil + (stat.byFuero?.civil || 0),
+    comercial: acc.comercial + (stat.byFuero?.comercial || 0),
+    segsocial: acc.segsocial + (stat.byFuero?.segsocial || 0),
+    trabajo: acc.trabajo + (stat.byFuero?.trabajo || 0)
+  }), { civil: 0, comercial: 0, segsocial: 0, trabajo: 0 });
+
+  const daysWithActivity = recentStats.filter(s => s.processed > 0).length;
+
+  return {
+    period: days,
+    daysWithActivity,
+    totals,
+    averages: {
+      processedPerDay: daysWithActivity > 0 ? Math.round(totals.processed / daysWithActivity) : 0,
+      successRate: totals.processed > 0 ? Math.round((totals.success / totals.processed) * 100) : 0,
+      intervinientesPerDoc: totals.success > 0 ? Math.round((totals.intervinientesExtracted / totals.success) * 10) / 10 : 0
+    },
+    byFuero,
+    latestDate: recentStats.length > 0 ?
+      new Date(Math.max(...recentStats.map(s => new Date(s.date)))).toISOString() : null
+  };
+};
+
+/**
+ * Limpia estadísticas antiguas (mantiene solo los últimos N días)
+ * @param {Number} keepDays - Días a mantener
+ */
+schema.statics.cleanupOldDailyStats = async function(keepDays = 90) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - keepDays);
+
+  return this.findOneAndUpdate(
+    { worker_id: 'extra_info_main' },
+    {
+      $pull: {
+        dailyStats: { date: { $lt: cutoffDate } }
+      }
+    },
+    { new: true }
+  );
 };
 
 module.exports = mongoose.model("ConfiguracionExtraInfo", schema);
