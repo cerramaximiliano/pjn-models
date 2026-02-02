@@ -5,6 +5,37 @@
  */
 const mongoose = require("mongoose");
 
+/**
+ * Helper para obtener fecha en zona horaria de Argentina (UTC-3)
+ * Esto es importante porque las estadísticas deben agruparse por día local
+ */
+function getArgentinaDate() {
+  const now = new Date();
+  // Argentina es UTC-3 (no tiene horario de verano actualmente)
+  const argentinaOffset = -3 * 60; // -180 minutos
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const argentinaMinutes = utcMinutes + argentinaOffset;
+
+  // Calcular si hay cambio de día
+  let dayOffset = 0;
+  if (argentinaMinutes < 0) {
+    dayOffset = -1; // Día anterior en Argentina
+  } else if (argentinaMinutes >= 24 * 60) {
+    dayOffset = 1; // Día siguiente en Argentina
+  }
+
+  // Crear fecha ajustada
+  const argentinaDate = new Date(now);
+  argentinaDate.setUTCDate(argentinaDate.getUTCDate() + dayOffset);
+
+  // Formatear fecha como YYYY-MM-DD
+  const year = argentinaDate.getUTCFullYear();
+  const month = String(argentinaDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(argentinaDate.getUTCDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 // Schema para estadísticas por fuero
 const fueroStatsSchema = new mongoose.Schema({
   fuero: { type: String, required: true },
@@ -288,7 +319,7 @@ workerDailySummarySchema.statics.generateSummary = async function(date, workerTy
       status = 'completed';
     }
   }
-  if (activeHoursSet.size > 0 && new Date().toISOString().split('T')[0] === date) {
+  if (activeHoursSet.size > 0 && getArgentinaDate() === date) {
     status = 'in_progress';
   }
 
@@ -319,13 +350,18 @@ workerDailySummarySchema.statics.generateSummary = async function(date, workerTy
  * Obtiene resumen de los últimos N días
  */
 workerDailySummarySchema.statics.getLastNDays = async function(n = 7, workerType = 'app-update') {
-  const today = new Date();
+  const todayStr = getArgentinaDate();
   const dates = [];
 
+  // Parsear fecha de Argentina y generar lista de fechas hacia atrás
+  const [year, month, day] = todayStr.split('-').map(Number);
+  const baseDate = new Date(Date.UTC(year, month - 1, day));
+
   for (let i = 0; i < n; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split('T')[0]);
+    const d = new Date(baseDate);
+    d.setUTCDate(d.getUTCDate() - i);
+    const dateStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    dates.push(dateStr);
   }
 
   return this.find({
@@ -355,9 +391,10 @@ workerDailySummarySchema.statics.getChartData = async function(n = 30, workerTyp
  * Función auxiliar para obtener fecha anterior
  */
 function getPreviousDate(dateStr) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().split('T')[0];
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() - 1);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
 module.exports = mongoose.model("WorkerDailySummary", workerDailySummarySchema);

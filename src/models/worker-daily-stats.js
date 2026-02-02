@@ -5,6 +5,37 @@
  */
 const mongoose = require("mongoose");
 
+/**
+ * Helper para obtener fecha en zona horaria de Argentina (UTC-3)
+ * Esto es importante porque las estadísticas deben agruparse por día local
+ */
+function getArgentinaDate() {
+  const now = new Date();
+  // Argentina es UTC-3 (no tiene horario de verano actualmente)
+  const argentinaOffset = -3 * 60; // -180 minutos
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const argentinaMinutes = utcMinutes + argentinaOffset;
+
+  // Calcular si hay cambio de día
+  let dayOffset = 0;
+  if (argentinaMinutes < 0) {
+    dayOffset = -1; // Día anterior en Argentina
+  } else if (argentinaMinutes >= 24 * 60) {
+    dayOffset = 1; // Día siguiente en Argentina
+  }
+
+  // Crear fecha ajustada
+  const argentinaDate = new Date(now);
+  argentinaDate.setUTCDate(argentinaDate.getUTCDate() + dayOffset);
+
+  // Formatear fecha como YYYY-MM-DD
+  const year = argentinaDate.getUTCFullYear();
+  const month = String(argentinaDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(argentinaDate.getUTCDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 // Schema para una ejecución individual del worker
 const runSchema = new mongoose.Schema({
   startedAt: { type: Date, required: true },
@@ -145,7 +176,7 @@ workerDailyStatsSchema.index({ 'alerts.acknowledged': 1, status: 1 });
  * Obtiene o crea el registro del día para un fuero y worker
  */
 workerDailyStatsSchema.statics.getOrCreateToday = async function(fuero, workerType) {
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const today = getArgentinaDate();
 
   let stats = await this.findOne({ date: today, fuero, workerType });
 
@@ -278,7 +309,7 @@ workerDailyStatsSchema.statics.finishRun = async function(fuero, workerType, run
  * Incrementa contadores de forma atómica
  */
 workerDailyStatsSchema.statics.incrementStats = async function(fuero, workerType, increments) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getArgentinaDate();
 
   const incObj = {};
 
@@ -333,7 +364,7 @@ workerDailyStatsSchema.statics.logError = async function(fuero, workerType, erro
  * Obtiene resumen del día actual
  */
 workerDailyStatsSchema.statics.getTodaySummary = async function(workerType = null) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getArgentinaDate();
 
   const query = { date: today };
   if (workerType) {
@@ -361,7 +392,7 @@ workerDailyStatsSchema.statics.getByDateRange = async function(fromDate, toDate,
  * Obtiene alertas activas (no reconocidas)
  */
 workerDailyStatsSchema.statics.getActiveAlerts = async function() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getArgentinaDate();
 
   return this.find({
     date: today,
