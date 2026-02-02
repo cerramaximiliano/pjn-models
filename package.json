@@ -10,6 +10,6 @@
   "license": "ISC",
   "description": "",
   "peerDependencies": {
-    "mongoose": "^8.0.0"
+    "mongoose": "^8.22.0"
   }
 }
