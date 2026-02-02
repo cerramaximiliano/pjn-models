@@ -5,6 +5,42 @@
  */
 const mongoose = require("mongoose");
 
+/**
+ * Helper para obtener fecha y hora en zona horaria de Argentina (UTC-3)
+ * Esto es importante porque las estadísticas deben agruparse por día/hora local
+ */
+function getArgentinaDateTime() {
+  const now = new Date();
+  // Argentina es UTC-3 (no tiene horario de verano actualmente)
+  const argentinaOffset = -3 * 60; // -180 minutos
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const argentinaMinutes = utcMinutes + argentinaOffset;
+
+  // Calcular la fecha y hora en Argentina
+  let argentinaHour = Math.floor(argentinaMinutes / 60);
+  let dayOffset = 0;
+
+  if (argentinaHour < 0) {
+    argentinaHour += 24;
+    dayOffset = -1; // Día anterior en Argentina
+  } else if (argentinaHour >= 24) {
+    argentinaHour -= 24;
+    dayOffset = 1; // Día siguiente en Argentina
+  }
+
+  // Crear fecha ajustada
+  const argentinaDate = new Date(now);
+  argentinaDate.setUTCDate(argentinaDate.getUTCDate() + dayOffset);
+
+  // Formatear fecha como YYYY-MM-DD
+  const year = argentinaDate.getUTCFullYear();
+  const month = String(argentinaDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(argentinaDate.getUTCDate()).padStart(2, '0');
+  const date = `${year}-${month}-${day}`;
+
+  return { date, hour: argentinaHour };
+}
+
 const workerHourlyStatsSchema = new mongoose.Schema({
   // Identificadores únicos del registro
   date: {
@@ -98,9 +134,7 @@ workerHourlyStatsSchema.index({ date: -1, hour: -1 });
  * Obtiene o crea el registro de la hora actual para un fuero y worker
  */
 workerHourlyStatsSchema.statics.getOrCreateCurrent = async function(fuero, workerType) {
-  const now = new Date();
-  const date = now.toISOString().split('T')[0]; // YYYY-MM-DD
-  const hour = now.getHours();
+  const { date, hour } = getArgentinaDateTime();
 
   let stats = await this.findOne({ date, hour, fuero, workerType });
 
@@ -120,9 +154,7 @@ workerHourlyStatsSchema.statics.getOrCreateCurrent = async function(fuero, worke
  * Incrementa contadores de forma atómica
  */
 workerHourlyStatsSchema.statics.incrementStats = async function(fuero, workerType, increments) {
-  const now = new Date();
-  const date = now.toISOString().split('T')[0];
-  const hour = now.getHours();
+  const { date, hour } = getArgentinaDateTime();
 
   const incObj = {};
   const setObj = { lastUpdate: new Date() };
@@ -161,9 +193,7 @@ workerHourlyStatsSchema.statics.incrementStats = async function(fuero, workerTyp
  * Registra un ciclo del manager
  */
 workerHourlyStatsSchema.statics.recordManagerCycle = async function(fuero, workerType, cycleData) {
-  const now = new Date();
-  const date = now.toISOString().split('T')[0];
-  const hour = now.getHours();
+  const { date, hour } = getArgentinaDateTime();
 
   const update = {
     $inc: { managerCycles: 1 },
@@ -217,20 +247,40 @@ workerHourlyStatsSchema.statics.recordManagerCycle = async function(fuero, worke
  * Obtiene estadísticas de las últimas N horas
  */
 workerHourlyStatsSchema.statics.getLastNHours = async function(n = 24, fuero = null, workerType = null) {
-  const now = new Date();
+  const { date: currentDate, hour: currentHour } = getArgentinaDateTime();
   const results = [];
 
-  for (let i = 0; i < n; i++) {
-    const time = new Date(now.getTime() - (i * 60 * 60 * 1000));
-    const date = time.toISOString().split('T')[0];
-    const hour = time.getHours();
+  // Convertir fecha actual a timestamp para iterar hacia atrás
+  const [year, month, day] = currentDate.split('-').map(Number);
+  let baseDate = new Date(Date.UTC(year, month - 1, day, currentHour + 3)); // +3 para compensar UTC-3
 
-    const query = { date, hour };
+  for (let i = 0; i < n; i++) {
+    const time = new Date(baseDate.getTime() - (i * 60 * 60 * 1000));
+    // Calcular fecha/hora en Argentina para este timestamp
+    const argentinaOffset = -3 * 60; // minutos
+    const utcMinutes = time.getUTCHours() * 60 + time.getUTCMinutes();
+    const argentinaMinutes = utcMinutes + argentinaOffset;
+
+    let argHour = Math.floor(argentinaMinutes / 60);
+    let dayOffset = 0;
+    if (argHour < 0) {
+      argHour += 24;
+      dayOffset = -1;
+    } else if (argHour >= 24) {
+      argHour -= 24;
+      dayOffset = 1;
+    }
+
+    const adjDate = new Date(time);
+    adjDate.setUTCDate(adjDate.getUTCDate() + dayOffset);
+    const dateStr = `${adjDate.getUTCFullYear()}-${String(adjDate.getUTCMonth() + 1).padStart(2, '0')}-${String(adjDate.getUTCDate()).padStart(2, '0')}`;
+
+    const query = { date: dateStr, hour: argHour };
     if (fuero) query.fuero = fuero;
     if (workerType) query.workerType = workerType;
 
     const stats = await this.find(query).lean();
-    results.push({ date, hour, stats });
+    results.push({ date: dateStr, hour: argHour, stats });
   }
 
   return results.reverse(); // Orden cronológico
