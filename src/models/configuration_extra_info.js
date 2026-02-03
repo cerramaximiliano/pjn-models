@@ -167,6 +167,14 @@ const schema = new mongoose.Schema(
           type: [String],
           default: ['6850300d153bccaac42b37db']
         }
+      },
+      // Re-extracción de intervinientes después de N días
+      // null o 0 = nunca re-extraer (comportamiento actual)
+      // > 0 = re-extraer si detailsLastUpdate tiene más de N días
+      reextractAfterDays: {
+        type: Number,
+        default: null,
+        min: 0
       }
     },
 
