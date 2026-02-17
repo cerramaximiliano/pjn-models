@@ -22,6 +22,7 @@ const CausasCSJSchema = new Schema({
 
   number: { type: String, required: true, index: true },
   year: { type: String, required: true, index: true },
+  incidente: { type: String, default: null },
   fuero: { type: String, default: 'CSJ', index: true },
   
   // Datos específicos de la Corte Suprema
@@ -311,7 +312,7 @@ const CausasCSJSchema = new Schema({
 });
 
 // Índices compuestos
-CausasCSJSchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
+CausasCSJSchema.index({ number: 1, year: 1, incidente: 1, fuero: 1 }, { unique: true });
 CausasCSJSchema.index({ verified: 1, isError: 1 });
 CausasCSJSchema.index({ 'processingLock.expiresAt': 1 });
 CausasCSJSchema.index({ 'processingLock.workerId': 1 });
@@ -337,9 +338,9 @@ CausasCSJSchema.statics.safeSave = async function(docData) {
     } catch (error) {
         if (error.code === 11000) {
             // Error de clave duplicada - actualizar documento existente
-            const { number, year, fuero } = docData;
+            const { number, year, incidente, fuero } = docData;
             return await this.findOneAndUpdate(
-                { number, year, fuero },
+                { number, year, incidente: incidente || null, fuero },
                 { $set: docData },
                 { new: true, upsert: true }
             );

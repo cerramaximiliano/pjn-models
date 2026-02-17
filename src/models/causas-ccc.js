@@ -22,6 +22,7 @@ const CausasCCCSchema = new Schema({
 
   number: { type: String, required: true, index: true },
   year: { type: String, required: true, index: true },
+  incidente: { type: String, default: null },
   fuero: { type: String, default: 'CCC', index: true },
   
   // Datos del juzgado
@@ -313,7 +314,7 @@ const CausasCCCSchema = new Schema({
 });
 
 // Índices compuestos
-CausasCCCSchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
+CausasCCCSchema.index({ number: 1, year: 1, incidente: 1, fuero: 1 }, { unique: true });
 CausasCCCSchema.index({ juzgado: 1, secretaria: 1 });
 CausasCCCSchema.index({ verified: 1, isError: 1 });
 CausasCCCSchema.index({ 'processingLock.expiresAt': 1 });
@@ -340,9 +341,9 @@ CausasCCCSchema.statics.safeSave = async function(docData) {
     } catch (error) {
         if (error.code === 11000) {
             // Error de clave duplicada - actualizar documento existente
-            const { number, year, fuero } = docData;
+            const { number, year, incidente, fuero } = docData;
             return await this.findOneAndUpdate(
-                { number, year, fuero },
+                { number, year, incidente: incidente || null, fuero },
                 { $set: docData },
                 { new: true, upsert: true }
             );

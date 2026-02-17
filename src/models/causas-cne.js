@@ -22,6 +22,7 @@ const CausasCNESchema = new Schema({
 
   number: { type: String, required: true, index: true },
   year: { type: String, required: true, index: true },
+  incidente: { type: String, default: null },
   fuero: { type: String, default: 'CNE', index: true },
   
   // Datos del juzgado
@@ -306,7 +307,7 @@ const CausasCNESchema = new Schema({
 });
 
 // Índices compuestos
-CausasCNESchema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
+CausasCNESchema.index({ number: 1, year: 1, incidente: 1, fuero: 1 }, { unique: true });
 CausasCNESchema.index({ juzgado: 1, secretaria: 1 });
 CausasCNESchema.index({ verified: 1, isError: 1 });
 CausasCNESchema.index({ 'processingLock.expiresAt': 1 });
@@ -333,9 +334,9 @@ CausasCNESchema.statics.safeSave = async function(docData) {
     } catch (error) {
         if (error.code === 11000) {
             // Error de clave duplicada - actualizar documento existente
-            const { number, year, fuero } = docData;
+            const { number, year, incidente, fuero } = docData;
             return await this.findOneAndUpdate(
-                { number, year, fuero },
+                { number, year, incidente: incidente || null, fuero },
                 { $set: docData },
                 { new: true, upsert: true }
             );

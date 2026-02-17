@@ -5,6 +5,7 @@ const schema = new mongoose.Schema(
     date: { type: Date, default: new Date() },
     year: { type: Number },
     number: { type: Number },
+    incidente: { type: String, default: null },
     caratula: { type: String },
 
     // PARTES PROCESALES (extraídas de carátula)
@@ -399,7 +400,7 @@ schema.pre(['updateOne', 'findOneAndUpdate'], async function (next) {
 });
 
 // Índices compuestos
-schema.index({ number: 1, year: 1, fuero: 1 }, { unique: true });
+schema.index({ number: 1, year: 1, incidente: 1, fuero: 1 }, { unique: true });
 schema.index({ 'processingLock.expiresAt': 1 });
 schema.index({ 'processingLock.workerId': 1 });
 
@@ -424,9 +425,9 @@ schema.statics.safeSave = async function(docData) {
     } catch (error) {
         if (error.code === 11000) {
             // Error de clave duplicada - actualizar documento existente
-            const { number, year, fuero } = docData;
+            const { number, year, incidente, fuero } = docData;
             return await this.findOneAndUpdate(
-                { number, year, fuero },
+                { number, year, incidente: incidente || null, fuero },
                 { $set: docData },
                 { new: true, upsert: true }
             );
