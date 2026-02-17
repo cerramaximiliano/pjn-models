@@ -233,7 +233,7 @@ const CausasCPESchema = new Schema({
   dailyUpdateCount: { type: Number, default: 0 },
   
   // Origen de los datos
-  source: { type: String, enum: ['scraping', 'scraping-unified', 'api', 'manual', 'error_verification_worker', 'recovery_worker', 'cache'], default: 'scraping-unified' },
+  source: { type: String, enum: ['scraping', 'scraping-unified', 'api', 'manual', 'error_verification_worker', 'recovery_worker', 'cache', 'pjn-login'], default: 'scraping-unified' },
   scrapingDate: { type: Date, default: Date.now },
 
   scrapingProgress: {
