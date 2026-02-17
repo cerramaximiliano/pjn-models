@@ -464,6 +464,16 @@ const schema = new mongoose.Schema(
     isTemporary: {
       type: Boolean,
       default: false
+    },
+    // Delay en segundos antes de iniciar el cron (para escalonar workers)
+    delay_seconds: {
+      type: Number,
+      default: 0
+    },
+    // Flag para solicitar reinicio desde la API (el manager lo ejecuta y limpia)
+    pendingRestart: {
+      type: Boolean,
+      default: false
     }
   },
   {
