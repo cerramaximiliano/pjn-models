@@ -33,6 +33,7 @@ const CausasCSJSchema = new Schema({
   // Datos del juzgado
   juzgado: { type: Number, default: 0 },
   secretaria: { type: Number, default: 0 },
+  situacion: { type: String },
   juzgadoVerificado: { type: Boolean, default: false },
   juzgadoCorreccionMetodo: { 
     type: String, 

@@ -39,6 +39,7 @@ const schema = new mongoose.Schema(
         },
         juzgado: { type: Number },
         secretaria: { type: Number },
+        situacion: { type: String },
         juzgadoVerificado: { type: Boolean, default: false },
         juzgadoCorreccionMetodo: { 
             type: String, 
