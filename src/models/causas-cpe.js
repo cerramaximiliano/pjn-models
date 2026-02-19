@@ -130,6 +130,8 @@ const CausasCPESchema = new Schema({
     fecha: { type: Date },
     descripcion: { type: String }
   }],
+  movimientosCount: { type: Number, default: 0 },
+  fechaUltimoMovimiento: { type: Date },
 
   // INSTANCIA ORIGEN
   instanciaOrigen: {
