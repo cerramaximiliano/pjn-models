@@ -7,6 +7,7 @@ const schema = new mongoose.Schema(
         year: { type: Number },
         number: { type: Number },
         incidente: { type: String, default: null },
+        parentCausaId: { type: mongoose.Schema.Types.ObjectId, default: null },
         caratula: { type: String },
 
         // PARTES PROCESALES (extraídas de carátula)

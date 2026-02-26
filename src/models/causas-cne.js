@@ -23,6 +23,7 @@ const CausasCNESchema = new Schema({
   number: { type: String, required: true, index: true },
   year: { type: String, required: true, index: true },
   incidente: { type: String, default: null },
+  parentCausaId: { type: mongoose.Schema.Types.ObjectId, default: null },
   fuero: { type: String, default: 'CNE', index: true },
   
   // Datos del juzgado
