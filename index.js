@@ -10,6 +10,7 @@ module.exports = {
     CausasCFP: require('./src/models/causas-cfp'),         // Criminal y Correccional Federal
     CausasCCC: require('./src/models/causas-ccc'),         // Criminal y Correccional
     CausasCSJ: require('./src/models/causas-csj'),         // Corte Suprema de Justicia
+    CausasFSM: require('./src/models/causas-fsm'),         // Seguridad Social Ministerial
     ConfiguracionScraping: require("./src/models/configuration_scraping"),
     ConfiguracionVerificacion: require("./src/models/configuration_scraping_verify"),
     ConfiguracionAppUpdate: require("./src/models/configuration_scraping_app_update"),
