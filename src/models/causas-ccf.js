@@ -21,6 +21,7 @@ const CausasCCFSchema = new Schema({
   },
 
   number: { type: String, required: true, index: true },
+  incidente: { type: String, default: null },  // null=causa principal, "42" o "42/2"=incidente
   year: { type: String, required: true, index: true },
   incidente: { type: String, default: null },
   parentCausaId: { type: mongoose.Schema.Types.ObjectId, default: null },
@@ -54,7 +55,9 @@ const CausasCCFSchema = new Schema({
   // Información del expediente
   objeto: { type: String },
   info: { type: String },
-  
+  // Mensaje exacto devuelto por PJN cuando isValid=false (para estadísticas)
+  rejection_message: { type: String, default: null },
+
   // Estado del documento
   isValid: { type: Boolean, default: true },
   verified: { type: Boolean, default: false },

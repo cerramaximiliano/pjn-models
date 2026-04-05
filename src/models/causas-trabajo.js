@@ -5,7 +5,7 @@ const schema = new mongoose.Schema(
     date: { type: Date, default: new Date() },
     year: { type: Number },
     number: { type: Number },
-    incidente: { type: String, default: null },
+    incidente: { type: String, default: null },  // null=causa principal, "42" o "42/2"=incidente
     parentCausaId: { type: mongoose.Schema.Types.ObjectId, default: null },
     caratula: { type: String },
 
@@ -24,6 +24,8 @@ const schema = new mongoose.Schema(
     },
 
     info: { type: String },
+    // Mensaje exacto devuelto por PJN cuando isValid=false (para estadísticas)
+    rejection_message: { type: String, default: null },
     fuero: { type: String, default: "CNT" },
     objeto: {
       type: String,
