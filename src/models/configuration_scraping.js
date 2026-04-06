@@ -449,6 +449,27 @@ const schema = new mongoose.Schema(
       },
       duration: {
         type: String
+      },
+      // Estadísticas acumuladas del rango (reseteadas al reasignar)
+      totalFound: {
+        type: Number,
+        default: 0
+      },
+      totalNotFound: {
+        type: Number,
+        default: 0
+      },
+      totalErrors: {
+        type: Number,
+        default: 0
+      },
+      verification: {
+        totalAttempted: Number,
+        totalVerified: Number,
+        totalValid: Number,
+        totalInvalid: Number,
+        totalVerificationFailed: Number,
+        totalCaptchaFailed: Number
       }
     }],
     // Flags para retry worker - prevenir avance de número
