@@ -474,6 +474,22 @@ const schema = new mongoose.Schema(
     pendingRestart: {
       type: Boolean,
       default: false
+    },
+    // Sondeo de frontera para el año en curso (solo activo cuando year === año actual)
+    current_year_probe: {
+      // Cantidad de consecutive_not_found que dispara el sondeo
+      threshold: { type: Number, default: 50 },
+      // Offsets a sondear cuando se alcanza el umbral
+      probe_offsets: { type: [Number], default: [200, 1000, 5000] },
+      // Horas de pausa tras detectar frontera real antes de reintentar
+      check_interval_hours: { type: Number, default: 6 },
+      // Timestamp hasta cuando el worker debe pausar (frontera real detectada)
+      paused_until: { type: Date, default: null },
+      // Número estimado de la frontera cuando se detectó
+      estimated_frontier: { type: Number, default: null },
+      // Auditoría del último sondeo
+      last_probe_at: { type: Date, default: null },
+      last_probe_result: { type: String, default: null }
     }
   },
   {
