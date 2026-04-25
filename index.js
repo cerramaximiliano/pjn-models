@@ -30,6 +30,7 @@ module.exports = {
     ConfiguracionScraping: require("./src/models/configuration_scraping"),
     ConfiguracionVerificacion: require("./src/models/configuration_scraping_verify"),
     ConfiguracionAppUpdate: require("./src/models/configuration_scraping_app_update"),
+    ConfiguracionPrivacyChecker: require("./src/models/configuration_privacy_checker"),
     ConfiguracionEmailVerification: require("./src/models/configuration_email_verification"),
     ConfiguracionExtraInfo: require("./src/models/configuration_extra_info"),
     Interviniente: require("./src/models/interviniente"),

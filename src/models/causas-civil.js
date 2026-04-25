@@ -190,12 +190,19 @@ const schema = new mongoose.Schema(
             default: false,
             index: true
         },
-        // Indica si la causa es privada (solo accesible con login)
-        // null = no verificado aún, true = privada, false = pública
+        // Indica si la causa es privada/reservada (solo accesible con login).
+        // null = no verificado aún, true = privada, false = pública.
+        // El privacy-checker-worker mantiene este flag basándose en el counter
+        // que escribe app-update-worker en el folder asociado.
         isPrivate: {
             type: Boolean,
             default: null,
             index: true
+        },
+        // Timestamp de cuando la causa fue marcada como privada/reservada.
+        // Usado para auditar transiciones y mostrar al usuario "desde cuándo".
+        privateDetectedAt: {
+            type: Date
         },
         // Indica si la causa está archivada (todos los movimientos en VER HISTÓRICAS)
         // null = no verificado aún, true = archivada, false = activa
