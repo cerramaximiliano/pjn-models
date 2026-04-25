@@ -62,6 +62,8 @@ const CausasFPOSchema = new Schema({
   // Indica si la causa es privada (solo accesible con login)
   // null = no verificado aún, true = privada, false = pública
   isPrivate: { type: Boolean, default: null, index: true },
+  // Timestamp de cuando la causa fue marcada como privada/reservada.
+  privateDetectedAt: { type: Date },
   // Indica si la causa está archivada (todos los movimientos en VER HISTÓRICAS)
   // null = no verificado aún, true = archivada, false = activa
   isArchived: { type: Boolean, default: null, index: true },
