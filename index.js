@@ -38,4 +38,12 @@ module.exports = {
     WorkerHourlyStats: require("./src/models/worker-hourly-stats"),
     WorkerDailySummary: require("./src/models/worker-daily-summary"),
     ManagerConfig: require("./src/models/manager-config"),
+
+    // Movimiento como entidad de primera clase (Fase 2 — promueve los
+    // subdocs movimiento[] de Causas a colección propia con _id estable).
+    PjnMovement: require("./src/models/pjn-movement"),
+
+    // Helper compartido para generar el _id determinístico de PjnMovement.
+    // Reutilizable por scrapers, RAG workers, bridge cache→Atlas, etc.
+    movementId: require("./src/utils/movement-id"),
 };
