@@ -86,4 +86,4 @@ const schema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("ConfiguracionVerificacion", schema);
+module.exports = mongoose.models.ConfiguracionVerificacion || mongoose.model("ConfiguracionVerificacion", schema);

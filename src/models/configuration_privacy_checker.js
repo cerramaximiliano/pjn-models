@@ -89,4 +89,4 @@ schema.statics.getOrCreate = async function () {
   return this.getConfig();
 };
 
-module.exports = mongoose.model("ConfiguracionPrivacyChecker", schema);
+module.exports = mongoose.models.ConfiguracionPrivacyChecker || mongoose.model("ConfiguracionPrivacyChecker", schema);

@@ -152,4 +152,4 @@ schema.methods.hasReachedDailyJobsLimit = function() {
   return this.todayJobs >= this.dailyJobsLimit;
 };
 
-module.exports = mongoose.model('ConfiguracionEmailVerification', schema);
+module.exports = mongoose.models.ConfiguracionEmailVerification || mongoose.model("ConfiguracionEmailVerification", schema);

@@ -397,4 +397,4 @@ function getPreviousDate(dateStr) {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
-module.exports = mongoose.model("WorkerDailySummary", workerDailySummarySchema);
+module.exports = mongoose.models.WorkerDailySummary || mongoose.model("WorkerDailySummary", workerDailySummarySchema);

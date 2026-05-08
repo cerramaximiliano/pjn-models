@@ -297,4 +297,4 @@ managerConfigSchema.statics.getActiveAlerts = async function() {
   return config.alerts.filter(a => !a.acknowledged);
 };
 
-module.exports = mongoose.model("ManagerConfig", managerConfigSchema);
+module.exports = mongoose.models.ManagerConfig || mongoose.model("ManagerConfig", managerConfigSchema);

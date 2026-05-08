@@ -343,4 +343,4 @@ CausasFMPSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFMP', CausasFMPSchema);
+module.exports = mongoose.models.CausasFMP || mongoose.model("CausasFMP", CausasFMPSchema);

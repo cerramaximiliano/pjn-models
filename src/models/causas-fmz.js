@@ -343,4 +343,4 @@ CausasFMZSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFMZ', CausasFMZSchema);
+module.exports = mongoose.models.CausasFMZ || mongoose.model("CausasFMZ", CausasFMZSchema);

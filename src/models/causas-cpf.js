@@ -343,4 +343,4 @@ CausasCPFSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCPF', CausasCPFSchema);
+module.exports = mongoose.models.CausasCPF || mongoose.model("CausasCPF", CausasCPFSchema);

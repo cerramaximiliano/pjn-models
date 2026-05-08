@@ -166,4 +166,4 @@ const schema = new mongoose.Schema(
   schema.index({ 'updateProgress.completionPercentage': 1 });
   schema.index({ 'updateProgress.currentCycleStart': 1 });
 
-module.exports = mongoose.model("ConfiguracionAppUpdate", schema);
+module.exports = mongoose.models.ConfiguracionAppUpdate || mongoose.model("ConfiguracionAppUpdate", schema);

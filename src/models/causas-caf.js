@@ -354,4 +354,4 @@ CausasCAFSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCAF', CausasCAFSchema);
+module.exports = mongoose.models.CausasCAF || mongoose.model("CausasCAF", CausasCAFSchema);

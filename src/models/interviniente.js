@@ -116,4 +116,4 @@ schema.statics.findByNombre = function(nombre) {
     });
 };
 
-module.exports = mongoose.model("Interviniente", schema);
+module.exports = mongoose.models.Interviniente || mongoose.model("Interviniente", schema);

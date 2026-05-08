@@ -858,4 +858,4 @@ schema.statics.cleanupOldDailyStats = async function(keepDays = 90) {
   );
 };
 
-module.exports = mongoose.model("ConfiguracionExtraInfo", schema);
+module.exports = mongoose.models.ConfiguracionExtraInfo || mongoose.model("ConfiguracionExtraInfo", schema);

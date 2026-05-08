@@ -519,4 +519,4 @@ const schema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("ConfiguracionScraping", schema);
+module.exports = mongoose.models.ConfiguracionScraping || mongoose.model("ConfiguracionScraping", schema);

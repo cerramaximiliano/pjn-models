@@ -343,4 +343,4 @@ CausasFLPSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFLP', CausasFLPSchema);
+module.exports = mongoose.models.CausasFLP || mongoose.model("CausasFLP", CausasFLPSchema);

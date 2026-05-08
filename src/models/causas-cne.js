@@ -354,4 +354,4 @@ CausasCNESchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCNE', CausasCNESchema);
+module.exports = mongoose.models.CausasCNE || mongoose.model("CausasCNE", CausasCNESchema);

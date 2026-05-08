@@ -343,4 +343,4 @@ CausasFGRSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFGR', CausasFGRSchema);
+module.exports = mongoose.models.CausasFGR || mongoose.model("CausasFGR", CausasFGRSchema);

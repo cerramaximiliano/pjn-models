@@ -444,4 +444,4 @@ schema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model("CausasSegSocial", schema);
+module.exports = mongoose.models.CausasSegSocial || mongoose.model("CausasSegSocial", schema);

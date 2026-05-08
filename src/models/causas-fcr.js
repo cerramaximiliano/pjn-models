@@ -343,4 +343,4 @@ CausasFCRSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFCR', CausasFCRSchema);
+module.exports = mongoose.models.CausasFCR || mongoose.model("CausasFCR", CausasFCRSchema);

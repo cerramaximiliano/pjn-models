@@ -343,4 +343,4 @@ CausasFTUSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFTU', CausasFTUSchema);
+module.exports = mongoose.models.CausasFTU || mongoose.model("CausasFTU", CausasFTUSchema);

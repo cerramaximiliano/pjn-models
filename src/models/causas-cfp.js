@@ -361,4 +361,4 @@ CausasCFPSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCFP', CausasCFPSchema);
+module.exports = mongoose.models.CausasCFP || mongoose.model("CausasCFP", CausasCFPSchema);

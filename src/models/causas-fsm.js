@@ -343,4 +343,4 @@ CausasFSMSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFSM', CausasFSMSchema);
+module.exports = mongoose.models.CausasFSM || mongoose.model("CausasFSM", CausasFSMSchema);

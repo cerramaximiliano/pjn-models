@@ -354,4 +354,4 @@ CausasCCFSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCCF', CausasCCFSchema);
+module.exports = mongoose.models.CausasCCF || mongoose.model("CausasCCF", CausasCCFSchema);

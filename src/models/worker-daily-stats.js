@@ -437,4 +437,4 @@ async function checkAndCreateAlerts(stats) {
   }
 }
 
-module.exports = mongoose.model("WorkerDailyStats", workerDailyStatsSchema);
+module.exports = mongoose.models.WorkerDailyStats || mongoose.model("WorkerDailyStats", workerDailyStatsSchema);

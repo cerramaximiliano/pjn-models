@@ -343,4 +343,4 @@ CausasFPOSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFPO', CausasFPOSchema);
+module.exports = mongoose.models.CausasFPO || mongoose.model("CausasFPO", CausasFPOSchema);

@@ -358,4 +358,4 @@ CausasCSJSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCSJ', CausasCSJSchema);
+module.exports = mongoose.models.CausasCSJ || mongoose.model("CausasCSJ", CausasCSJSchema);

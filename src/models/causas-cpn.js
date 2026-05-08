@@ -343,4 +343,4 @@ CausasCPNSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCPN', CausasCPNSchema);
+module.exports = mongoose.models.CausasCPN || mongoose.model("CausasCPN", CausasCPNSchema);

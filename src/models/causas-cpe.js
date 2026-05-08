@@ -359,4 +359,4 @@ CausasCPESchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCPE', CausasCPESchema);
+module.exports = mongoose.models.CausasCPE || mongoose.model("CausasCPE", CausasCPESchema);

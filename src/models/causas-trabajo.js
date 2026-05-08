@@ -443,4 +443,4 @@ schema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model("CausasTrabajo", schema);
+module.exports = mongoose.models.CausasTrabajo || mongoose.model("CausasTrabajo", schema);

@@ -343,4 +343,4 @@ CausasFRESchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasFRE', CausasFRESchema);
+module.exports = mongoose.models.CausasFRE || mongoose.model("CausasFRE", CausasFRESchema);

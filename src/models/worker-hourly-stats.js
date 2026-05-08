@@ -321,4 +321,4 @@ workerHourlyStatsSchema.statics.getDaySummary = async function(date, fuero = nul
   return byHour;
 };
 
-module.exports = mongoose.model("WorkerHourlyStats", workerHourlyStatsSchema);
+module.exports = mongoose.models.WorkerHourlyStats || mongoose.model("WorkerHourlyStats", workerHourlyStatsSchema);

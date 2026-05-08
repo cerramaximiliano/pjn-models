@@ -361,4 +361,4 @@ CausasCCCSchema.statics.safeSave = async function(docData) {
     }
 };
 
-module.exports = mongoose.model('CausasCCC', CausasCCCSchema);
+module.exports = mongoose.models.CausasCCC || mongoose.model("CausasCCC", CausasCCCSchema);

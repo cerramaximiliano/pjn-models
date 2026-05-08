@@ -135,4 +135,4 @@ schema.index({ causaId: 1, sourceId: 1 }, { unique: true });
 // Queries cross-causa por fuero+fecha (notification coordinator, etc.).
 schema.index({ fuero: 1, fecha: -1 });
 
-module.exports = mongoose.model("PjnMovement", schema);
+module.exports = mongoose.models.PjnMovement || mongoose.model("PjnMovement", schema);
