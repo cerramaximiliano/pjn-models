@@ -444,4 +444,8 @@ schema.statics.safeSave = async function(docData) {
     }
 };
 
+
+// Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
+schema.add(require("../shared/sentencias-scan-fields"));
+
 module.exports = mongoose.models.CausasComercial || mongoose.model("CausasComercial", schema);

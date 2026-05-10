@@ -358,4 +358,8 @@ CausasCSJSchema.statics.safeSave = async function(docData) {
     }
 };
 
+
+// Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
+CausasCSJSchema.add(require("../shared/sentencias-scan-fields"));
+
 module.exports = mongoose.models.CausasCSJ || mongoose.model("CausasCSJ", CausasCSJSchema);

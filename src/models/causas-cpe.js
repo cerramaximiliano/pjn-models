@@ -359,4 +359,8 @@ CausasCPESchema.statics.safeSave = async function(docData) {
     }
 };
 
+
+// Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
+CausasCPESchema.add(require("../shared/sentencias-scan-fields"));
+
 module.exports = mongoose.models.CausasCPE || mongoose.model("CausasCPE", CausasCPESchema);

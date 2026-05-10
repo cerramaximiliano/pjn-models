@@ -343,4 +343,8 @@ CausasFSMSchema.statics.safeSave = async function(docData) {
     }
 };
 
+
+// Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
+CausasFSMSchema.add(require("../shared/sentencias-scan-fields"));
+
 module.exports = mongoose.models.CausasFSM || mongoose.model("CausasFSM", CausasFSMSchema);

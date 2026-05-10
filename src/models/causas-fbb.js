@@ -343,4 +343,8 @@ CausasFBBSchema.statics.safeSave = async function(docData) {
     }
 };
 
+
+// Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
+CausasFBBSchema.add(require("../shared/sentencias-scan-fields"));
+
 module.exports = mongoose.models.CausasFBB || mongoose.model("CausasFBB", CausasFBBSchema);

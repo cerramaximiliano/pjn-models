@@ -343,4 +343,8 @@ CausasFRESchema.statics.safeSave = async function(docData) {
     }
 };
 
+
+// Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
+CausasFRESchema.add(require("../shared/sentencias-scan-fields"));
+
 module.exports = mongoose.models.CausasFRE || mongoose.model("CausasFRE", CausasFRESchema);

@@ -361,4 +361,8 @@ CausasCCCSchema.statics.safeSave = async function(docData) {
     }
 };
 
+
+// Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
+CausasCCCSchema.add(require("../shared/sentencias-scan-fields"));
+
 module.exports = mongoose.models.CausasCCC || mongoose.model("CausasCCC", CausasCCCSchema);
