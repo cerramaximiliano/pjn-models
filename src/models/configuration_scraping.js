@@ -122,7 +122,7 @@ const schema = new mongoose.Schema(
       },
       provider: {
         type: String,
-        enum: ['2captcha', 'capsolver'],
+        enum: ['2captcha', 'capsolver', 'captchaai'],
         default: '2captcha'
       },
       capsolver: {
@@ -342,11 +342,21 @@ const schema = new mongoose.Schema(
             type: Boolean,
             default: false
           }
+        },
+        captchaai: {
+          key: {
+            type: String,
+            default: ''
+          },
+          enabled: {
+            type: Boolean,
+            default: false
+          }
         }
       },
       defaultProvider: {
         type: String,
-        enum: ['2captcha', 'capsolver'],
+        enum: ['2captcha', 'capsolver', 'captchaai'],
         default: '2captcha'
       },
       minimumBalance: {

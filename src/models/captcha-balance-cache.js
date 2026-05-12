@@ -16,7 +16,7 @@ const mongoose = require('mongoose');
 const captchaBalanceCacheSchema = new mongoose.Schema({
   provider: {
     type: String,
-    enum: ['capsolver', '2captcha'],
+    enum: ['capsolver', '2captcha', 'captchaai'],
     required: true,
     unique: true
   },
