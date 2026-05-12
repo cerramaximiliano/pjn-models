@@ -331,33 +331,43 @@ workerDailyStatsSchema.statics.incrementStats = async function(fuero, workerType
 };
 
 /**
- * Registra un error
+ * Registra un error (append-only en errors[], capado a 100).
+ *
+ * Usa findOneAndUpdate con $push + $slice para evitar VersionError en
+ * escrituras concurrentes desde múltiples instancias en cluster mode.
+ *
+ * Importante: NO incrementa stats.failed. Ese contador lo lleva
+ * incrementStats() — el caller (WorkerStatsTracker.recordError) ya invoca
+ * incrementStats({ processed: 1, failed: 1 }) antes que logError, así que
+ * doblarlo acá producía un conteo inflado.
  */
 workerDailyStatsSchema.statics.logError = async function(fuero, workerType, errorData) {
-  const stats = await this.getOrCreateToday(fuero, workerType);
+  const today = getArgentinaDate();
+  const now = new Date();
 
-  // Limitar a 100 errores
-  if (stats.errors.length >= 100) {
-    stats.errors.shift(); // Eliminar el más antiguo
-  }
-
-  stats.errors.push({
-    timestamp: new Date(),
-    causaId: errorData.causaId,
-    number: errorData.number,
-    year: errorData.year,
-    errorType: errorData.errorType || 'unknown',
-    message: errorData.message,
-    stack: errorData.stack,
-    retryCount: errorData.retryCount || 0
-  });
-
-  stats.stats.failed += 1;
-  stats.lastUpdate = new Date();
-
-  await stats.save();
-
-  return stats;
+  return this.findOneAndUpdate(
+    { date: today, fuero, workerType },
+    {
+      $push: {
+        errors: {
+          $each: [{
+            timestamp: now,
+            causaId: errorData.causaId,
+            number: errorData.number,
+            year: errorData.year,
+            errorType: errorData.errorType || 'unknown',
+            message: errorData.message,
+            stack: errorData.stack,
+            retryCount: errorData.retryCount || 0
+          }],
+          $slice: -100
+        }
+      },
+      $set: { lastUpdate: now },
+      $setOnInsert: { date: today, fuero, workerType, createdAt: now }
+    },
+    { upsert: true, new: true }
+  );
 };
 
 /**
