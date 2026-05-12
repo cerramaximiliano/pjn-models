@@ -368,6 +368,22 @@ const schema = new mongoose.Schema(
         default: false
       }
     },
+    // Captura de imágenes de captcha para entrenamiento de OCR propio.
+    // Cuando enabled=true, el worker guarda cada imagen de captcha resuelta
+    // (correctamente o no) en el filesystem del servidor para construir dataset.
+    captureDataset: {
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      // Path opcional para sobreescribir el default (CAPTCHA_DATASET_PATH env o
+      // /var/lib/pjn-captcha-dataset). Usado solo si necesitamos rutas distintas
+      // por worker; normalmente queda vacío y se usa la global.
+      path: {
+        type: String,
+        default: ''
+      }
+    },
     // Estadísticas de verificación de documentos
     verification: {
       totalAttempted: {
