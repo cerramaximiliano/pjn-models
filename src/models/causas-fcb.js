@@ -271,6 +271,14 @@ const CausasFCBSchema = new Schema({
     skipUntil: {
       type: Date,
       required: false
+    },
+    // Trazabilidad de la protección anti-eliminación (SCRAPING_ERROR_ZERO_MOVEMENTS).
+    // Histórico — NO se resetea con resetDocumentErrors. count se incrementa
+    // cada vez que el sitio devolvió 0 movs pero la BD tenía >0.
+    zeroMovementsProtection: {
+      count: { type: Number, default: 0, required: false },
+      lastAt: { type: Date, required: false },
+      lastBdCount: { type: Number, default: 0, required: false }
     }
   },
 
