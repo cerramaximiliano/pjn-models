@@ -359,6 +359,21 @@ const schema = new mongoose.Schema(
             }
         },
 
+        // CONTADOR DIARIO DE ERRORES (espeja updateStats.today, separa errores del total).
+        // byType: { captcha_not_detected: 12, scraping_zero_movements: 1 } — claves
+        // dinámicas, por eso es Mixed (no validamos enum acá; el worker lo hace).
+        errorStats: {
+            count: { type: Number, default: 0 },      // Total errores all-time (espeja updateStats.errors)
+            last: { type: Date },                     // Último error
+            lastErrorType: { type: String },          // Categoría del último error
+            today: {
+                date: { type: String },
+                count: { type: Number, default: 0 },
+                hours: [{ type: Number }],
+                byType: { type: mongoose.Schema.Types.Mixed, default: {} }
+            }
+        },
+
         // DATOS ADICIONALES (extra-info-worker)
         detailsLoaded: {
             type: Boolean,
