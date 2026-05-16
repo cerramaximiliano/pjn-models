@@ -118,11 +118,30 @@ const managerConfigSchema = new mongoose.Schema({
     validate: [arr => arr.length <= 1440, 'Máximo 1440 snapshots (24h con intervalos de 1min)']
   },
 
+  // ========== ESTADO DEL SITIO PJN ==========
+  // Reportado por los workers cuando detectan que el portal PJN está
+  // devolviendo la página de "Sitio en mantenimiento". Compartido entre los
+  // 4 procesos (civil/ss/trabajo/comercial) — el primero que detecta marca,
+  // el resto lee el flag y saltea sin abrir browser.
+  pjnSiteStatus: {
+    status: {
+      type: String,
+      enum: ['healthy', 'maintenance', 'unknown'],
+      default: 'unknown'
+    },
+    message: { type: String, default: null },
+    maintenanceSince: { type: Date, default: null },
+    lastDetectedAt: { type: Date, default: null },
+    lastDetectedBy: { type: String, default: null },
+    lastHealthyAt: { type: Date, default: null },
+    consecutiveDetections: { type: Number, default: 0 }
+  },
+
   // ========== ALERTAS ==========
   alerts: [{
     type: {
       type: String,
-      enum: ['high_cpu', 'high_memory', 'no_workers', 'high_pending', 'manager_stopped']
+      enum: ['high_cpu', 'high_memory', 'no_workers', 'high_pending', 'manager_stopped', 'site_maintenance']
     },
     message: { type: String },
     fuero: { type: String },
@@ -295,6 +314,116 @@ managerConfigSchema.statics.getActiveAlerts = async function() {
   }
 
   return config.alerts.filter(a => !a.acknowledged);
+};
+
+/**
+ * Devuelve el sub-doc pjnSiteStatus actual (lean).
+ * Si el doc no existe aún, retorna null.
+ */
+managerConfigSchema.statics.getSiteStatus = async function() {
+  const doc = await this.findOne(
+    { name: 'app-update-manager' },
+    { pjnSiteStatus: 1 }
+  ).lean();
+  return doc?.pjnSiteStatus || null;
+};
+
+/**
+ * Devuelve true si el sitio PJN está marcado como en mantenimiento y la
+ * última detección no es más vieja que `maxAgeMs` (por defecto 5 min).
+ * El maxAge evita que el flag quede pegado si por alguna razón nadie
+ * reportó healthy: a los 5 min sin reconfirmar, dejamos que un worker
+ * intente y descubra el estado real.
+ */
+managerConfigSchema.statics.isInMaintenance = async function({ maxAgeMs = 5 * 60 * 1000 } = {}) {
+  const status = await this.getSiteStatus();
+  if (!status || status.status !== 'maintenance') return false;
+  if (!status.lastDetectedAt) return true;
+  return (Date.now() - new Date(status.lastDetectedAt).getTime()) < maxAgeMs;
+};
+
+/**
+ * Marca el sitio PJN como en mantenimiento.
+ * Si ya estaba en mantenimiento, sólo refresca lastDetectedAt/By e incrementa
+ * el contador. Si transiciona desde healthy/unknown, setea maintenanceSince.
+ *
+ * Retorna { transitioned, wasInMaintenance } para que el caller pueda
+ * disparar notificación sólo en la transición.
+ */
+managerConfigSchema.statics.reportMaintenance = async function(fuero, message = null) {
+  const now = new Date();
+  const current = await this.findOne(
+    { name: 'app-update-manager' },
+    { 'pjnSiteStatus.status': 1, 'pjnSiteStatus.maintenanceSince': 1 }
+  ).lean();
+
+  const wasInMaintenance = current?.pjnSiteStatus?.status === 'maintenance';
+
+  const setUpdate = {
+    'pjnSiteStatus.status': 'maintenance',
+    'pjnSiteStatus.message': message,
+    'pjnSiteStatus.lastDetectedAt': now,
+    'pjnSiteStatus.lastDetectedBy': fuero,
+    lastUpdate: now
+  };
+
+  const updateOp = { $set: setUpdate };
+
+  if (wasInMaintenance) {
+    updateOp.$inc = { 'pjnSiteStatus.consecutiveDetections': 1 };
+  } else {
+    setUpdate['pjnSiteStatus.maintenanceSince'] = now;
+    setUpdate['pjnSiteStatus.consecutiveDetections'] = 1;
+  }
+
+  await this.findOneAndUpdate(
+    { name: 'app-update-manager' },
+    updateOp,
+    { upsert: true }
+  );
+
+  return {
+    transitioned: !wasInMaintenance,
+    wasInMaintenance,
+    maintenanceSince: wasInMaintenance ? current?.pjnSiteStatus?.maintenanceSince : now
+  };
+};
+
+/**
+ * Marca el sitio PJN como healthy tras una verificación exitosa.
+ * Si venía de mantenimiento, retorna transitioned=true para que el caller
+ * dispare la notificación de "vuelta a la normalidad".
+ */
+managerConfigSchema.statics.reportHealthy = async function(fuero) {
+  const now = new Date();
+  const current = await this.findOne(
+    { name: 'app-update-manager' },
+    { 'pjnSiteStatus.status': 1, 'pjnSiteStatus.maintenanceSince': 1 }
+  ).lean();
+
+  const wasInMaintenance = current?.pjnSiteStatus?.status === 'maintenance';
+
+  await this.findOneAndUpdate(
+    { name: 'app-update-manager' },
+    {
+      $set: {
+        'pjnSiteStatus.status': 'healthy',
+        'pjnSiteStatus.lastHealthyAt': now,
+        'pjnSiteStatus.maintenanceSince': null,
+        'pjnSiteStatus.consecutiveDetections': 0,
+        'pjnSiteStatus.message': null,
+        'pjnSiteStatus.lastDetectedBy': fuero,
+        lastUpdate: now
+      }
+    },
+    { upsert: true }
+  );
+
+  return {
+    transitioned: wasInMaintenance,
+    wasInMaintenance,
+    previousMaintenanceSince: current?.pjnSiteStatus?.maintenanceSince || null
+  };
 };
 
 module.exports = mongoose.models.ManagerConfig || mongoose.model("ManagerConfig", managerConfigSchema);
