@@ -38,6 +38,7 @@ module.exports = {
     WorkerHourlyStats: require("./src/models/worker-hourly-stats"),
     WorkerDailySummary: require("./src/models/worker-daily-summary"),
     ManagerConfig: require("./src/models/manager-config"),
+    PjnSiteIncident: require("./src/models/pjn-site-incident"),
     CaptchaBalanceCache: require("./src/models/captcha-balance-cache"),
 
     // Movimiento como entidad de primera clase (Fase 2 — promueve los

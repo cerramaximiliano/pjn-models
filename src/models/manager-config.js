@@ -382,6 +382,16 @@ managerConfigSchema.statics.reportMaintenance = async function(fuero, message = 
     { upsert: true }
   );
 
+  // Abrir un incident en el historial (idempotente — si ya hay uno abierto
+  // sólo refresca el contador). Lazy require para no romper si PjnSiteIncident
+  // no está disponible en versiones viejas que reusen este file.
+  try {
+    const PjnSiteIncident = require('./pjn-site-incident');
+    await PjnSiteIncident.openIncident({ detectedBy: fuero, message, startedAt: now });
+  } catch (err) {
+    // No queremos romper el reporte de mantenimiento por un fallo del historial.
+  }
+
   return {
     transitioned: !wasInMaintenance,
     wasInMaintenance,
@@ -418,6 +428,18 @@ managerConfigSchema.statics.reportHealthy = async function(fuero) {
     },
     { upsert: true }
   );
+
+  // Cerrar el incident abierto en el historial. Solo tiene sentido si
+  // veníamos de maintenance — si transitioned=false (ya estábamos healthy)
+  // no debería haber incident abierto.
+  if (wasInMaintenance) {
+    try {
+      const PjnSiteIncident = require('./pjn-site-incident');
+      await PjnSiteIncident.closeIncident({ resolvedBy: fuero, endedAt: now });
+    } catch (err) {
+      // Idem reportMaintenance: no rompemos el flow principal.
+    }
+  }
 
   return {
     transitioned: wasInMaintenance,
