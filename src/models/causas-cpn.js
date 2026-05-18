@@ -88,7 +88,7 @@ const CausasCPNSchema = new Schema({
     timestamp: { type: Date, required: true },
     source: {
       type: String,
-      enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual', 'admin_manual', 'error_verification_worker', 'recovery_worker', 'stuck_documents_worker', 'verify_worker_recovery', 'cache'],
+      enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual', 'admin_manual', 'error_verification_worker', 'recovery_worker', 'stuck_documents_worker', 'verify_worker_recovery', 'cache', 'pjn_privacy_checker'],
       required: true
     },
     movimientosAdded: { type: Number, default: 0 },
@@ -113,7 +113,14 @@ const CausasCPNSchema = new Schema({
       caratulaUpdated: Boolean,
       objetoUpdated: Boolean,
       juzgadoUpdated: Boolean,
-      secretariaUpdated: Boolean
+      secretariaUpdated: Boolean,
+      previousIsPrivate: Boolean,
+      newIsPrivate: Boolean,
+      privacyChangeReason: String,
+      folderId: String,
+      accessFailureCount: Number,
+      threshold: Number,
+      workerId: String
     }
   }],
 
