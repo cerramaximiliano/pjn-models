@@ -59,7 +59,7 @@ const schema = new mongoose.Schema(
       defaultProvider: {
         type: String,
         enum: ['2captcha', 'capsolver', 'captchaai'],
-        default: '2captcha'
+        default: 'capsolver'
       },
       apiKeys: {
         twocaptcha: {
