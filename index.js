@@ -39,6 +39,8 @@ module.exports = {
     WorkerDailySummary: require("./src/models/worker-daily-summary"),
     ManagerConfig: require("./src/models/manager-config"),
     PjnSiteIncident: require("./src/models/pjn-site-incident"),
+    PjnHtmlDriftIncident: require("./src/models/pjn-html-drift-incident"),
+    PjnHtmlFingerprint: require("./src/models/pjn-html-fingerprint"),
     CaptchaBalanceCache: require("./src/models/captcha-balance-cache"),
 
     // Movimiento como entidad de primera clase (Fase 2 — promueve los
@@ -48,4 +50,9 @@ module.exports = {
     // Helper compartido para generar el _id determinístico de PjnMovement.
     // Reutilizable por scrapers, RAG workers, bridge cache→Atlas, etc.
     movementId: require("./src/utils/movement-id"),
+
+    // Guard de drift estructural del HTML del PJN: detecta cambios en la
+    // estructura y abre incidentes (PjnHtmlDriftIncident) con dedup. Usado
+    // por los 3 repos que scrapean el portal.
+    htmlDriftGuard: require("./src/utils/html-drift-guard"),
 };
