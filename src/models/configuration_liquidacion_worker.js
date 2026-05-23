@@ -81,6 +81,9 @@ const liquidacionWorkerConfigSchema = new mongoose.Schema({
       // Si true, después del $merge encola TODOS los pdfStatus:pending (backfill).
       // Si false, solo encola los recién insertados (<24h, lastSeenAt = capturedAt).
       reenqueuePending: { type: Boolean, default: false },
+      // Backfill throttling: encola en lotes con pausa para no spike-ear Redis
+      enqueueBatchSize: { type: Number, default: 500, min: 1 },
+      enqueueBatchDelayMs: { type: Number, default: 2_000, min: 0 },
       // Filtros de la aggregation (regex como strings)
       caratulaPattern: { type: String, default: 'reajustes varios' },
       movDetallePattern: { type: String, default: 'liquidac|haber.{0,8}caja|reajustad|retroactiv' },
@@ -106,7 +109,13 @@ const liquidacionWorkerConfigSchema = new mongoose.Schema({
       // Si chars/page < threshold → pdfStatus: 'ocr_needed' (defer a OCR worker v1.1)
       ocrCharsPerPageThreshold: { type: Number, default: 100 },
       retryAttempts: { type: Number, default: 3 },
-      backoffDelayMs: { type: Number, default: 60_000 }
+      backoffDelayMs: { type: Number, default: 60_000 },
+      // Pausa entre PDFs (por worker — multiplicar por concurrency para tasa efectiva).
+      // Default 500ms → con concurrency=4 da ~4 req/s contra scw.pjn.gov.ar
+      requestDelayMs: { type: Number, default: 500, min: 0 },
+      // Cap diario de PDFs procesados (incluye extracted + ocr_needed + not_pdf).
+      // 0 = sin límite. Cuando se alcanza, el worker idle hasta el rollover de fecha.
+      dailyLimit: { type: Number, default: 0, min: 0 }
     },
 
     // ── Alertas ──
@@ -134,6 +143,11 @@ const liquidacionWorkerConfigSchema = new mongoose.Schema({
       byStatus: { type: mongoose.Schema.Types.Mixed, default: {} },
       byCategory: { type: mongoose.Schema.Types.Mixed, default: {} },
       lastUpdatedAt: Date
+    },
+    // Contador diario para el cap dailyLimit. Rollover automático al cambiar la fecha.
+    dailyProcessed: {
+      date: { type: String, default: null },    // "YYYY-MM-DD"
+      count: { type: Number, default: 0 }
     },
     queueStats: {
       // Cola del PDF processor (liq-process)
@@ -271,6 +285,46 @@ liquidacionWorkerConfigSchema.statics.addAlert = async function (alert) {
     },
     { upsert: true, new: true }
   );
+};
+
+/**
+ * Incrementa el contador diario y devuelve el nuevo valor.
+ * Rollover automático: si la fecha actual no coincide con currentState.dailyProcessed.date,
+ * resetea el contador a 1 con la nueva fecha. Operación atómica vía findOneAndUpdate.
+ *
+ * @returns {Promise<{date: string, count: number}>} estado tras incrementar.
+ */
+liquidacionWorkerConfigSchema.statics.incrementDailyProcessed = async function () {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  // Primer intento: incrementar si la fecha matchea
+  const updated = await this.findOneAndUpdate(
+    { name: 'liquidacion-worker', 'currentState.dailyProcessed.date': today },
+    { $inc: { 'currentState.dailyProcessed.count': 1 }, $set: { lastUpdate: new Date() } },
+    { new: true, projection: { 'currentState.dailyProcessed': 1 } }
+  ).lean();
+  if (updated) return updated.currentState.dailyProcessed;
+  // Fecha distinta (o doc nuevo) → resetear a 1 con la fecha de hoy
+  const reset = await this.findOneAndUpdate(
+    { name: 'liquidacion-worker' },
+    { $set: { 'currentState.dailyProcessed': { date: today, count: 1 }, lastUpdate: new Date() } },
+    { new: true, upsert: true, projection: { 'currentState.dailyProcessed': 1 } }
+  ).lean();
+  return reset.currentState.dailyProcessed;
+};
+
+/**
+ * Lee el contador del día actual (sin incrementar). Si el doc no existe o la fecha
+ * no es la de hoy, devuelve { date: today, count: 0 } (sin tocar el doc).
+ */
+liquidacionWorkerConfigSchema.statics.getTodayProcessedCount = async function () {
+  const today = new Date().toISOString().slice(0, 10);
+  const doc = await this.findOne(
+    { name: 'liquidacion-worker' },
+    { 'currentState.dailyProcessed': 1 }
+  ).lean();
+  const dp = doc?.currentState?.dailyProcessed;
+  if (!dp || dp.date !== today) return { date: today, count: 0 };
+  return dp;
 };
 
 /**
