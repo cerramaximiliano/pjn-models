@@ -142,6 +142,16 @@ const liquidacionWorkerConfigSchema = new mongoose.Schema({
       total: { type: Number, default: 0 },
       byStatus: { type: mongoose.Schema.Types.Mixed, default: {} },
       byCategory: { type: mongoose.Schema.Types.Mixed, default: {} },
+      // Reparte de los `pdfStatus: 'extracted'` por sectionMix (HC, HR, RET,
+      // HC+HR, HC+HR+RET, COVER, NONE, etc.). Indica qué PDFs tienen tablas
+      // útiles vs solo cover de escrito o sin clasificar.
+      bySectionMix: { type: mongoose.Schema.Types.Mixed, default: {} },
+      // Causas distintas con al menos 1 PDF extracted cuyo sectionMix NO sea
+      // COVER ni NONE. Métrica clave: cuántas causas tienen información útil.
+      causasWithDataCount: { type: Number, default: 0 },
+      // Total de causas distintas con cualquier URL en la colección (incluye
+      // todas las que el extractor encontró, sin importar si se procesó el PDF).
+      causasTotalCount: { type: Number, default: 0 },
       lastUpdatedAt: Date
     },
     // Contador diario para el cap dailyLimit. Rollover automático al cambiar la fecha.
