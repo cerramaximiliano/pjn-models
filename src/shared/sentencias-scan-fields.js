@@ -1,20 +1,19 @@
+const mongoose = require("mongoose");
+
 /**
- * Tracking de visitas del sentencias-collector-worker sobre cada causa.
+ * Campos compartidos que se inyectan en todos los causa-models (causas-civil,
+ * causas-trabajo, causas-segsocial, causas-comercial, etc.) vía
+ * schema.add(require('../shared/sentencias-scan-fields')).
  *
- * El collector usa un cursor por _id por fuero (no marca causas individualmente),
- * por lo que sin estos campos no hay forma de saber cuándo fue escaneada una
- * causa puntual ni cuántas sentencias se le encontraron.
- *
- * Estos campos los escribe el sentencias-collector al terminar de procesar
- * cada causa de un batch. Permiten:
- *   - Trazabilidad/debugging por causa.
- *   - Re-elegibilidad selectiva (ej. forzar re-scan de una sola causa).
- *   - Decisiones de freshness (priorizar causas que hace mucho no se miran).
- *
- * Se aplican vía schema.add(require('../shared/sentencias-scan-fields'))
- * en cada causas-*.js para mantener una sola fuente de verdad.
+ * Agrupa dos bloques:
+ *  1. `sentenciasScan` — tracking del sentencias-collector-worker.
+ *  2. `saij` — vínculo con sentencias extraídas del scraper SAIJ
+ *     (saij-workers). Permite marcar causas que fueron originadas o
+ *     enriquecidas con jurisprudencia/sumarios provenientes de SAIJ y
+ *     mantener back-refs a los docs en la colección `saij-sentencias`.
  */
 module.exports = {
+    // ── sentencias-collector (Phase 1) ────────────────────────────────────
     sentenciasScan: {
         // Timestamp del último scan del collector sobre esta causa.
         // null = nunca escaneada (o pre-backfill).
@@ -35,6 +34,39 @@ module.exports = {
         totalFound: {
             type: Number,
             default: 0
+        }
+    },
+
+    // ── saij-workers (vinculación con SAIJ) ───────────────────────────────
+    saij: {
+        // True si esta causa tiene al menos una sentencia/sumario asociado en
+        // la colección `saij-sentencias`. Indexable para listados.
+        isFromSaij: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
+        // Referencias a los docs de saij-sentencias (jurisprudencia/sumarios)
+        // vinculados a esta causa. Se agregan via $addToSet.
+        saijSentenciaIds: [{
+            type: mongoose.Schema.Types.ObjectId
+        }],
+        // Jurisdicción del filtro de scraping en SAIJ que detectó la causa
+        // (ej: 'NACIONAL'). Preparado para multi-jurisdicción futura.
+        saijJurisdiccion: {
+            type: String,
+            default: null
+        },
+        // Timestamp del primer link establecido entre la causa y SAIJ.
+        linkedAt: {
+            type: Date
+        },
+        // True si la causa fue CREADA como resultado de un fallo SAIJ
+        // (no existía previamente en URLDB_LOCAL). Distingue causas
+        // "orgánicas" del PJN de causas inyectadas desde jurisprudencia SAIJ.
+        createdViaSaij: {
+            type: Boolean,
+            default: false
         }
     }
 };
