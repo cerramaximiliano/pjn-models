@@ -189,6 +189,15 @@ const schema = new mongoose.Schema(
       default: false,
       index: true
     },
+    // Fill ÚNICO del historial de PDFs a S3. Lo setea law-analytics-server al
+    // vincular una causa preexistente (cache_existing / local_db / import desde
+    // caché). El worker pjn-pdf-backfill recorre el movimiento[] completo, baja
+    // los PDFs faltantes a S3 (idempotente) y limpia el flag; de ahí en más el
+    // app-update-worker se hace cargo del delta.
+    needsPdfBackfill: {
+      type: Boolean,
+      default: false
+    },
     // Indica si la causa es privada/reservada (solo accesible con login).
     // null = no verificado aún, true = privada, false = pública.
     isPrivate: {
@@ -453,6 +462,13 @@ schema.index({
 
 // Índice para el sistema de cooldown de errores
 schema.index({ 'scrapingProgress.skipUntil': 1 });
+
+// Índice parcial para el worker pjn-pdf-backfill: solo indexa las causas
+// pendientes de fill, manteniéndolo chico (la inmensa mayoría tiene el flag en false).
+schema.index(
+    { needsPdfBackfill: 1 },
+    { partialFilterExpression: { needsPdfBackfill: true } }
+);
 
 // Método estático para manejar errores E11000 (duplicados)
 schema.statics.safeSave = async function(docData) {
