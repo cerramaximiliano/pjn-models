@@ -41,6 +41,7 @@ module.exports = {
     WorkerDailySummary: require("./src/models/worker-daily-summary"),
     ManagerConfig: require("./src/models/manager-config"),
     PjnSiteIncident: require("./src/models/pjn-site-incident"),
+    PjnScrapeIncident: require("./src/models/pjn-scrape-incident"),
     PjnHtmlDriftIncident: require("./src/models/pjn-html-drift-incident"),
     PjnHtmlFingerprint: require("./src/models/pjn-html-fingerprint"),
     CaptchaBalanceCache: require("./src/models/captcha-balance-cache"),
