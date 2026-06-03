@@ -139,10 +139,7 @@ const CausasCSJSchema = new Schema({
   errorDetails: { type: Schema.Types.Mixed },
   
   // Movimientos
-  movimiento: [{
-    fecha: { type: Date },
-    descripcion: { type: String }
-  }],
+  movimiento: { type: Array },
   movimientosCount: { type: Number, default: 0 },
   fechaUltimoMovimiento: { type: Date },
 
