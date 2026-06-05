@@ -21,6 +21,7 @@ const TYPES = [
   "degraded_scrape",     // DOM degradado: movimientos esqueleto (guard activado)
   "processing_exception",// excepción no controlada procesando la causa
   "login_error",         // fallo de login/sesión (reservado)
+  "empty_movements",     // scrape OK pero la causa no tiene movimientos (evidencia de causa vacía)
   "other",
 ];
 
