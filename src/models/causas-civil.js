@@ -231,6 +231,11 @@ const schema = new mongoose.Schema(
             linkedAt: { type: Date, default: Date.now },
             source: { type: String, enum: ['sync', 'manual'], default: 'sync' }
         }],
+        // Denormalizado: true si ≥1 linkedCredentials apunta a una credencial enabled.
+        // Discrimina el ruteo de actualización: con credencial activa → pjn-mis-causas
+        // (login, sin captcha); sin credencial activa → pjn-workers (público, captcha).
+        // Mantenido por el cron de reconciliación + set-on-link en causa-sync-service.
+        hasActiveCredential: { type: Boolean, default: false, index: true },
         processingLock: {
             workerId: { type: String },
             lockedAt: { type: Date, default: Date.now },
