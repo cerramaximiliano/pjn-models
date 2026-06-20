@@ -58,4 +58,10 @@ module.exports = {
     // estructura y abre incidentes (PjnHtmlDriftIncident) con dedup. Usado
     // por los 3 repos que scrapean el portal.
     htmlDriftGuard: require("./src/utils/html-drift-guard"),
+
+    // Facade compartido del estado del portal PJN (detección de mantenimiento,
+    // pausa de scraping, email + alerta + broadcast en la transición). Único
+    // hogar de la lógica que antes estaba duplicada en pjn-workers y
+    // pjn-mis-causas. Mongoose-agnóstico vía configure({ getManagerConfig }).
+    pjnSiteStatus: require("./src/utils/pjn-site-status"),
 };
