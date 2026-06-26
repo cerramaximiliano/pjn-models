@@ -64,4 +64,11 @@ module.exports = {
     // hogar de la lógica que antes estaba duplicada en pjn-workers y
     // pjn-mis-causas. Mongoose-agnóstico vía configure({ getManagerConfig }).
     pjnSiteStatus: require("./src/utils/pjn-site-status"),
+
+    // Trayectoria judicial: parseo de organismos + construcción del timeline de
+    // instancias (juzgado/cámara/corte/otro) desde los movimientos, + derivación
+    // de los campos legacy. Único hogar; reemplaza los parse-organizacion.js /
+    // scraping-common.js duplicados en pjn-workers, pjn-workers-scraping y
+    // pjn-mis-causas. Mongoose-agnóstico.
+    trayectoria: require("./src/utils/trayectoria"),
 };

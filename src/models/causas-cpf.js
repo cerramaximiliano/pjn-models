@@ -50,6 +50,22 @@ const CausasCPFSchema = new Schema({
 
   // Texto completo de la organización
   organizacionTextoCompleto: { type: String },
+  // Trayectoria judicial: timeline de organismos por los que pasó el expediente
+  // (juzgado/cámara/corte/otro), con fechas desde/hasta, revisitas y marca del
+  // actual. Derivado de los movimientos via pjn-models/src/utils/trayectoria.
+  trayectoria: [{
+    tipo: { type: String, enum: ['juzgado', 'camara', 'corte', 'otro'] },
+    juzgado: { type: Number },
+    secretaria: { type: Number },
+    sala: { type: Number },
+    vocalia: { type: Number },
+    organismo: { type: String },
+    textoCompleto: { type: String },
+    desde: { type: Date },
+    hasta: { type: Date },
+    actual: { type: Boolean },
+    fuenteDatos: { type: String },
+  }],
 
   // Información del expediente
   objeto: { type: String },

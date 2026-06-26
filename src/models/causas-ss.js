@@ -62,6 +62,24 @@ const schema = new mongoose.Schema(
     
     // Texto completo de la organización
     organizacionTextoCompleto: { type: String },
+    // Trayectoria judicial: timeline de organismos por los que pasó el
+    // expediente (juzgado/cámara/corte/otro), con fechas desde/hasta, soporte de
+    // revisitas y marca del actual. Se deriva de los movimientos via la lib
+    // compartida pjn-models/src/utils/trayectoria (buildTrayectoria). Los campos
+    // legacy (juzgado/sala/tipoOrganizacion/instancia*) se siguen derivando de acá.
+    trayectoria: [{
+      tipo: { type: String, enum: ['juzgado', 'camara', 'corte', 'otro'] },
+      juzgado: { type: Number },
+      secretaria: { type: Number },
+      sala: { type: Number },
+      vocalia: { type: Number },
+      organismo: { type: String },
+      textoCompleto: { type: String },
+      desde: { type: Date },
+      hasta: { type: Date },
+      actual: { type: Boolean },
+      fuenteDatos: { type: String },
+    }],
     movimiento: { type: Array },
     movimientosCount: {
       type: Number,
