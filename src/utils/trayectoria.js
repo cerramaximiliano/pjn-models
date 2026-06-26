@@ -72,6 +72,20 @@ function toNum(v) {
 function stripDesc(s) {
   return String(s || '').replace(/^\s*descripci[oó]n:\s*/i, '').trim();
 }
+// Interpreta el token de una sala a número. Reglas por fuero:
+//  - dígitos → ese número (Seg. Social: SALA 1, 2, 3).
+//  - Civil/Comercial → salas con LETRA (A..F): NO son romanos → 0 (la etiqueta
+//    queda en textoCompleto; el número no aplica).
+//  - Trabajo/federales → romano (SALA IX = 9).
+// Cap a ≤99 como red de seguridad (evita SALA C→100, SALA D→500, etc.).
+function parseSalaNumero(tok, fuero) {
+  if (!tok) return 0;
+  if (/^\d+$/.test(tok)) { const n = parseInt(tok, 10); return n <= 99 ? n : 0; }
+  const f = String(fuero || '').toUpperCase();
+  if (f === 'CIV' || f === 'COM') return 0; // salas-letra
+  if (/^[IVXLCDM]+$/.test(tok)) { const n = romanToArabic(tok); return n >= 1 && n <= 99 ? n : 0; }
+  return 0;
+}
 // Último número 1..200 de un texto (el número del juzgado va al final del
 // organismo; evita capturar el "1" de "1RA INSTANCIA" o años de fechas).
 function lastNumberInRange(s) {
@@ -98,10 +112,13 @@ function parseOrganismo(textoRaw, fuero) {
   }
 
   // CÁMARA / SALA → camara (sala + vocalía). Si es de otro fuero → 'otro'.
-  if (/^C[AÁ]MARA/i.test(txt) || /^SALA\s+[IVXLCDM\d]/i.test(txt)) {
+  if (/^C[AÁ]MARA/i.test(txt) || /^SALA\s+[A-Z\d]/i.test(txt)) {
     if (!esFueroPropio(txt, fuero)) return { ...base, tipo: 'otro' };
-    const m = txt.match(/SALA\s+([IVXLCDM]+|\d{1,3})(?:[^\d]*?VOCAL[IÍ]A[^\d]*?(\d{1,3}))?/i);
-    return { ...base, tipo: 'camara', sala: m ? toNum(m[1]) : 0, vocalia: m && m[2] ? parseInt(m[2], 10) : 0 };
+    // Acepta token de sala como letra(s) o dígitos. OJO: Civil y Comercial usan
+    // salas con LETRA (SALA A..F) — NO son romanos (SALA C ≠ 100, SALA D ≠ 500).
+    const m = txt.match(/SALA\s+([A-Z]{1,4}|\d{1,3})(?:[^\d]*?VOCAL[IÍ]A[^\d]*?(\d{1,3}))?/i);
+    const tok = m ? m[1].toUpperCase() : '';
+    return { ...base, tipo: 'camara', sala: parseSalaNumero(tok, fuero), vocalia: m && m[2] ? parseInt(m[2], 10) : 0 };
   }
 
   // JUZGADO → juzgado (+ secretaría). Si es de otro fuero (exhorto a un juzgado
