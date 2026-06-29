@@ -36,6 +36,12 @@ module.exports = {
     LiquidacionWorkerConfig: require("./src/models/configuration_liquidacion_worker"),
     NotifWorkerConfig: require("./src/models/configuration_notif_worker"),
     Interviniente: require("./src/models/interviniente"),
+
+    // Catálogo de objetos de causa distintos por fuero (acceso O(1) al universo
+    // de objetos). Poblado en vivo por los workers vía CausaObjeto.recordObjeto
+    // y recalculado por scripts/maintenance/seed-objetos-catalog.js.
+    CausaObjeto: require("./src/models/causa-objeto"),
+
     WorkerDailyStats: require("./src/models/worker-daily-stats"),
     WorkerHourlyStats: require("./src/models/worker-hourly-stats"),
     WorkerDailySummary: require("./src/models/worker-daily-summary"),
