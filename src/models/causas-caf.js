@@ -20,10 +20,9 @@ const CausasCAFSchema = new Schema({
       nombres: [{ type: String }]  // Array para búsqueda indistinta actor/demandado/causante
   },
 
-  number: { type: String, required: true, index: true },
+  number: { type: Number, required: true, index: true },
   incidente: { type: String, default: null },  // null=causa principal, "42" o "42/2"=incidente
-  year: { type: String, required: true, index: true },
-  incidente: { type: String, default: null },
+  year: { type: Number, required: true, index: true },
   parentCausaId: { type: mongoose.Schema.Types.ObjectId, default: null },
   fuero: { type: String, default: 'CAF', index: true },
 
