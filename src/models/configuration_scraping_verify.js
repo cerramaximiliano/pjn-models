@@ -14,7 +14,7 @@ const schema = new mongoose.Schema(
     },
     verification_mode: {
       type: String,
-      enum: ['all', 'civil', 'ss', 'trabajo', 'comercial'],
+      enum: ['all', 'civil', 'ss', 'trabajo', 'comercial', 'ccf'],
       default: 'all',
       required: true
     },
