@@ -384,6 +384,36 @@ const schema = new mongoose.Schema(
         default: ''
       }
     },
+    // OCR propio de captchas (modelo ONNX entrenado sobre el dataset que
+    // capturaron estos mismos workers — repo pjn-captcha-ocr).
+    localOcr: {
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      // shadow=true: predice en paralelo al proveedor pago y solo registra la
+      // comparación, sin alterar el resultado. Es el modo con el que se mide
+      // la precisión real en producción antes de confiarle la resolución.
+      shadow: {
+        type: Boolean,
+        default: true
+      },
+      // Umbral de confianza para el modo híbrido (cuando shadow=false):
+      // por debajo de este valor se cae al proveedor pago.
+      confidenceThreshold: {
+        type: Number,
+        default: 0.999
+      },
+      // Overrides opcionales; normalmente vacíos y se usan los defaults.
+      modelPath: {
+        type: String,
+        default: ''
+      },
+      logPath: {
+        type: String,
+        default: ''
+      }
+    },
     // Estadísticas de verificación de documentos
     verification: {
       totalAttempted: {
