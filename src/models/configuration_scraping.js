@@ -404,6 +404,14 @@ const schema = new mongoose.Schema(
         type: Number,
         default: 0.999
       },
+      // Cortocircuito: si el modelo falla esta cantidad de veces seguidas
+      // (el PJN rechazó su respuesta), el proceso deja de usarlo y sigue con
+      // el proveedor pago. Protege contra un cambio de estilo del captcha que
+      // invalide el modelo de un día para el otro. 0 = sin cortocircuito.
+      maxConsecutiveFailures: {
+        type: Number,
+        default: 5
+      },
       // Overrides opcionales; normalmente vacíos y se usan los defaults.
       modelPath: {
         type: String,
