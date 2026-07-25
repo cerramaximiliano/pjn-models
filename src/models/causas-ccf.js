@@ -260,6 +260,17 @@ const CausasCCFSchema = new Schema({
   source: { type: String, enum: ['scraping', 'scraping-unified', 'api', 'app', 'manual', 'error_verification_worker', 'recovery_worker', 'cache', 'pjn-login', 'saij'], default: 'scraping-unified' },
   scrapingDate: { type: Date, default: Date.now },
 
+  // Control de reintentos del retry worker. Sin esto la cola no tenía corte:
+  // un documento que falla por una causa persistente se reintentaba para
+  // siempre, ocupando a los workers y tapando a los que sí se pueden
+  // recuperar.
+  retryProgress: {
+    attempts: { type: Number, default: 0 },
+    lastAttemptAt: { type: Date },
+    // Se agotaron los intentos: deja de ser elegible para el retry.
+    exhausted: { type: Boolean, default: false },
+    lastReason: { type: String },
+  },
   scrapingProgress: {
     isComplete: {
       type: Boolean,

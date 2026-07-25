@@ -334,7 +334,18 @@ const schema = new mongoose.Schema(
         lastCheckedDate: { type: Date },
         dailyUpdateCount: { type: Number, default: 0 },
 
-        scrapingProgress: {
+        // Control de reintentos del retry worker. Sin esto la cola no tenía corte:
+    // un documento que falla por una causa persistente se reintentaba para
+    // siempre, ocupando a los workers y tapando a los que sí se pueden
+    // recuperar.
+    retryProgress: {
+      attempts: { type: Number, default: 0 },
+      lastAttemptAt: { type: Date },
+      // Se agotaron los intentos: deja de ser elegible para el retry.
+      exhausted: { type: Boolean, default: false },
+      lastReason: { type: String },
+    },
+    scrapingProgress: {
             isComplete: {
                 type: Boolean,
                 default: false,
