@@ -70,6 +70,10 @@ module.exports = {
         timeline: { type: [TimelineSegmentSchema], default: undefined },
         suspensiones: { type: [SuspensionSchema], default: undefined },
 
+        // Eventos de etapa con rank menor al vigente, descartados por la cura
+        // de retrocesos (v3): incidentes post-etapa, no vueltas de etapa.
+        retrocesosDescartados: { type: Number, default: null },
+
         // Fecha del último movimiento conocido — el "hasta cuándo sabemos".
         asOf: { type: Date, default: null },
 

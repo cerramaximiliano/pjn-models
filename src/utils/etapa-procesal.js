@@ -40,7 +40,14 @@
 // Versión de las reglas de clasificación. Subirla cuando cambie la taxonomía o
 // el mapeo de forma que amerite recomputar el backfill (los docs guardan la
 // versión con la que se computó su etapaProcesal).
-const VERSION = 2; // v2: agrega `resultado` (subtipo de terminación)
+// v2: agrega `resultado` (subtipo de terminación)
+// v3: cura de retrocesos — un evento de etapa con rank menor al vigente se
+//     descarta como actividad incidental (p.ej. "LLAMAMIENTO DE AUTOS" después
+//     de la sentencia = auto para resolver un incidente, no vuelta de etapa).
+//     Única excepción: reapertura desde etapa terminal (fin_litigio/archivo),
+//     que sí abre segmento marcado retroceso. Los descartados se cuentan en
+//     `retrocesosDescartados` para auditoría.
+const VERSION = 3;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -271,6 +278,7 @@ function runEngine(eventos, familia, fu, seed) {
         cur: seed.cur || null, // segmento abierto {etapa, rank, desde, hasta}
         terminal: !!seed.terminal,
         resultado: seed.resultado || null,
+        retrocesosDescartados: 0,
         paralizado: !!seed.paralizado,
         paralizadoDesde: seed.paralizadoDesde || null,
         suspensiones: [],   // suspensiones CERRADAS durante esta corrida
@@ -333,11 +341,19 @@ function runEngine(eventos, familia, fu, seed) {
             ev.categoria = "etapa";
         }
         if (st.cur && ev.etapa === st.cur.etapa) continue; // repetición de la misma etapa
+        if (st.cur && (ev.rank || 0) < (st.cur.rank || 0) && (st.cur.rank || 0) < ETAPAS.fin_litigio.rank) {
+            // Retroceso dentro del trámite: actividad incidental (p.ej. autos
+            // para resolver honorarios tras la sentencia). NO altera la
+            // progresión — se cuenta para auditoría y se descarta.
+            st.retrocesosDescartados++;
+            continue;
+        }
         if (st.cur) {
             st.cur.hasta = ev.fecha;
             if (st.nuevos.indexOf(st.cur) === -1) st.curCerrado = true;
         }
         const seg = { etapa: ev.etapa, rank: ev.rank, desde: ev.fecha, hasta: null };
+        // Solo llega acá un rank menor si la causa estaba terminada → reapertura real.
         if (st.cur && (ev.rank || 0) < (st.cur.rank || 0)) seg.retroceso = true;
         st.nuevos.push(seg);
         st.cur = seg;
@@ -361,6 +377,7 @@ function runEngine(eventos, familia, fu, seed) {
 // Calcula `dias` de cada segmento (los abiertos se miden contra asOf, no
 // contra hoy — la causa puede estar desactualizada) y arma el objeto final.
 function assemble(familia, timeline, st, suspensiones, asOf, counters) {
+    const retrocesosDescartados = (counters.retrocesosPrevios || 0) + (st.retrocesosDescartados || 0);
     for (const seg of timeline) {
         const fin = seg.hasta || asOf;
         seg.dias = fin && seg.desde ? Math.max(0, Math.round((fin - seg.desde) / DAY)) : null;
@@ -378,6 +395,9 @@ function assemble(familia, timeline, st, suspensiones, asOf, counters) {
         resultado: st.terminal ? st.resultado : null,
         paralizado: st.paralizado,
         suspensiones,
+        // Eventos de etapa con rank menor al vigente descartados por la cura
+        // v3 (incidentes post-etapa). Auditoría del criterio de progresividad.
+        retrocesosDescartados,
         asOf,
         eventosEstado: counters.eventos,
         eventosClasificados: counters.clasificados,
@@ -491,6 +511,7 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
         eventos: (prev.eventosEstado || 0) + st.eventos,
         clasificados: (prev.eventosClasificados || 0) + st.clasificados,
         sinClasificar: [...prevSin.entries()].map(([detalle, n]) => ({ detalle, n })),
+        retrocesosPrevios: prev.retrocesosDescartados || 0,
     });
     return Object.assign(resultado, { modo: "incremental", motivo: null });
 }
