@@ -77,4 +77,12 @@ module.exports = {
     // scraping-common.js duplicados en pjn-workers, pjn-workers-scraping y
     // pjn-mis-causas. Mongoose-agnóstico.
     trayectoria: require("./src/utils/trayectoria"),
+
+    // Etapa procesal: clasifica los movimientos "CAMBIO DE ESTADO DE
+    // EXPEDIENTE" (etiquetas del propio Lex100, presentes en ~99% de las
+    // causas con movimientos) contra una taxonomía canónica progresiva por
+    // familia (ordinario/sucesorio/concursal/ejecutivo) y deriva el timeline
+    // de etapas con desde/hasta/días por causa. Base empírica en
+    // docs/etapa-procesal-estados-frecuentes.tsv. Mongoose-agnóstico.
+    etapaProcesal: require("./src/utils/etapa-procesal"),
 };

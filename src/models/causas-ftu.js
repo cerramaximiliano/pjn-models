@@ -374,5 +374,6 @@ CausasFTUSchema.statics.safeSave = async function(docData) {
 
 // Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
 CausasFTUSchema.add(require("../shared/sentencias-scan-fields"));
+CausasFTUSchema.add(require("../shared/etapa-procesal-fields"));
 
 module.exports = mongoose.models.CausasFTU || mongoose.model("CausasFTU", CausasFTUSchema);

@@ -374,5 +374,6 @@ CausasCPFSchema.statics.safeSave = async function(docData) {
 
 // Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
 CausasCPFSchema.add(require("../shared/sentencias-scan-fields"));
+CausasCPFSchema.add(require("../shared/etapa-procesal-fields"));
 
 module.exports = mongoose.models.CausasCPF || mongoose.model("CausasCPF", CausasCPFSchema);

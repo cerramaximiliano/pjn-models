@@ -1,0 +1,492 @@
+/**
+ * etapa-procesal.js — Derivación de la etapa procesal y su timeline desde los
+ * movimientos de una causa PJN.
+ *
+ * Fundamento (auditoría 2026-07-25 sobre la DB local de worker_01): el ~99% de
+ * las causas con movimientos de los 4 fueros grandes (CNT/CSS/CIV/COM) tiene
+ * movimientos tipo "CAMBIO DE ESTADO DE EXPEDIENTE" cuyo `detalle` es la etapa
+ * que asigna el propio Lex100 ("INICIO / DEMANDA", "TRABA DE LITIS: ...",
+ * "PRUEBA...", "LLAMAMIENTO DE AUTOS A SENTENCIA", "EJECUCION DE SENTENCIA",
+ * "ARCHIVESE", ...). Esta lib normaliza ese vocabulario (~32k strings crudos,
+ * ~1.3k frecuentes que cubren el 99% del volumen) a una taxonomía canónica
+ * progresiva y construye el timeline de etapas con desde/hasta por causa.
+ *
+ * API:
+ *   - detectFamilia(fuero, objeto) → 'ordinario'|'sucesorio'|'concursal'|'ejecutivo'
+ *   - classifyEstado(detalle, familia, fuero) → { categoria, etapa, rank } | null
+ *   - deriveEtapaProcesal(movimientos, fuero, objeto) → {
+ *       familia, timeline: [{ etapa, rank, desde, hasta, dias, retroceso? }],
+ *       etapaActual, rankActual, fase, terminal, paralizado,
+ *       asOf, eventosEstado, eventosClasificados, sinClasificar, confianza
+ *     }
+ *
+ * Notas de diseño:
+ *   - Las etapas son PROGRESIVAS (rank monotónico creciente). Retrocesos
+ *     legítimos existen (reenvío de Cámara, desarchivo, nueva demanda tras
+ *     incompetencia): se admiten solo entre días distintos y quedan marcados
+ *     con `retroceso: true` — nunca se descartan en silencio.
+ *   - Estados administrativos (EN LETRA, EN DESPACHO, EN CONFRONTE, SIN
+ *     DEFINIR...) y de circulación (PASE, DEVOLUCION, ELEVACION...) NO son
+ *     etapas: se ignoran para el timeline (la ubicación ya la resuelve
+ *     trayectoria.js). PARALIZADO/ARCHIVO PROVISORIO suspenden sin cambiar
+ *     etapa. Misma lección que el filtro ES_ESTADO de trayectoria.js.
+ *   - deriveEtapaProcesal siempre responde "al fechaUltimoMovimiento" (asOf):
+ *     los workers de discovery no actualizan causas, así que la etapa vigente
+ *     hoy puede ser posterior.
+ *
+ * Mongoose-agnóstico: opera sobre arrays/objetos planos.
+ */
+
+// Versión de las reglas de clasificación. Subirla cuando cambie la taxonomía o
+// el mapeo de forma que amerite recomputar el backfill (los docs guardan la
+// versión con la que se computó su etapaProcesal).
+const VERSION = 1;
+
+// ---------------------------------------------------------------------------
+// Taxonomía canónica
+// ---------------------------------------------------------------------------
+
+// Ranks compartidos entre familias. La semántica del eje: 10-59 primera
+// instancia, 60-69 resolución de mérito, 70-89 revisión, 90-94 ejecución,
+// 95-100 terminada. Cada familia usa el subconjunto que le aplica.
+const ETAPAS = {
+    // — tronco ordinario —
+    demanda: { rank: 10, label: "Demanda / inicio" },
+    traba_litis: { rank: 20, label: "Traba de la litis" },
+    prueba: { rank: 30, label: "Prueba" },
+    alegatos: { rank: 40, label: "Alegatos" },
+    puro_derecho: { rank: 45, label: "Declaración de puro derecho" },
+    autos_sentencia: { rank: 50, label: "Autos para sentencia" },
+    sentencia_primera: { rank: 60, label: "Sentencia de primera instancia" },
+    segunda_instancia: { rank: 70, label: "Recurso / segunda instancia" },
+    sentencia_camara: { rank: 75, label: "Sentencia / resolución de Cámara" },
+    recurso_extraordinario: { rank: 80, label: "Recurso extraordinario" },
+    ejecucion: { rank: 90, label: "Ejecución de sentencia" },
+    fin_litigio: { rank: 95, label: "Fin del litigio" },
+    archivo: { rank: 100, label: "Archivo" },
+
+    // — familia sucesorio (CIV, objeto SUCESION*) —
+    apertura_sucesion: { rank: 10, label: "Apertura de la sucesión" },
+    edictos: { rank: 30, label: "Publicación de edictos" },
+    declaratoria: { rank: 60, label: "Declaratoria de herederos / aprobación de testamento" },
+    inscripcion: { rank: 90, label: "Inscripción de declaratoria" },
+
+    // — familia concursal (COM, objeto CONCURSO/QUIEBRA) —
+    apertura_concurso: { rank: 20, label: "Apertura del concurso" },
+    verificacion: { rank: 30, label: "Verificación de créditos" },
+    informe_general: { rank: 40, label: "Informe general" },
+    categorizacion: { rank: 45, label: "Categorización de acreedores" },
+    acuerdo: { rank: 50, label: "Período de exclusividad / mayorías" },
+    homologacion: { rank: 60, label: "Homologación del acuerdo" },
+
+    // — familia ejecutivo (EJECUCION*/EJECUTIVO, todos los fueros) —
+    sentencia_remate: { rank: 60, label: "Sentencia de remate" },
+};
+
+// Agrupación gruesa para UI / Folder.currentPhase.
+function faseDeRank(rank) {
+    if (rank == null) return null;
+    if (rank < 60) return "primera_instancia";
+    if (rank < 70) return "sentencia";
+    if (rank < 90) return "revision";
+    if (rank < 95) return "ejecucion";
+    return "terminada";
+}
+
+// ---------------------------------------------------------------------------
+// Detección de familia procesal
+// ---------------------------------------------------------------------------
+
+// El objeto llega normalizado (mayúsculas) o crudo; normalizamos igual.
+function detectFamilia(fuero, objeto) {
+    const o = norm(objeto || "");
+    if (/SUCESION/.test(o)) return "sucesorio";
+    if (/QUIEBRA|CONCURSO|LIQUIDACION JUDICIAL/.test(o)) return "concursal";
+    if (/^EJECUTIVO\b|EJECUCION|^EJEC\b|APREMIO/.test(o)) return "ejecutivo";
+    return "ordinario";
+}
+
+// ---------------------------------------------------------------------------
+// Clasificador de detalles de CAMBIO DE ESTADO
+// ---------------------------------------------------------------------------
+
+// Normaliza: mayúsculas, sin tildes, espacios colapsados, sin el prefijo
+// "DETALLE:"/"DESCRIPCION:" que algunos scrapers dejan pegado.
+function norm(s) {
+    return String(s || "")
+        .normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .toUpperCase()
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/^(DETALLE|DESCRIPCION):\s*/, "");
+}
+
+// Reglas ordenadas — la primera que matchea gana. `familias` limita la regla a
+// esas familias (ausente = todas). `fueros` idem por fuero canónico (CNT/CSS/
+// CIV/COM/...). Formato: [regex, categoria, etapa|null, opts]
+//
+// Categorías:
+//   etapa          entra a una etapa procesal (progresiva)
+//   terminal       hito que pone fin al litigio (etapa fin_litigio/archivo)
+//   administrativo estado de despacho, no procesal — se ignora
+//   traslado       circulación física del expediente — se ignora (trayectoria.js)
+//   suspension     paraliza sin cambiar etapa
+//   reanudacion    levanta la suspensión
+//   incidental     incidente/cuestión accesoria (honorarios, aclaratoria) — no
+//                  mueve la etapa principal
+//   contextual     ambiguo, se resuelve en deriveEtapaProcesal según la etapa
+//                  vigente (p.ej. "TRASLADO": de demanda en 1ra instancia, del
+//                  art. 259 o del REX en 2da — no avanza si ya está en revisión)
+const REGLAS = [
+    // ===== familia-específicas primero (le ganan a las genéricas) =====
+    // sucesorio
+    [/^SUCESION\.?\s*APERTURA|^DECLARA ABIERTA LA SUCESION|^APERTURA DE (LA )?SUCESION/, "etapa", "apertura_sucesion", { familias: ["sucesorio"] }],
+    [/^CERTIFICACION (DE )?EDICTOS|^EDICTOS|^SUCESION\.?\s*PUBLICACION DE EDICTOS/, "etapa", "edictos", { familias: ["sucesorio"] }],
+    [/DECLARATORIA DE HEREDEROS|^SUCESION\.?\s*DECLARATORIA|^APROBACION DE TESTAMENTO|^SUCESION\.?\s*TESTAMENTO/, "etapa", "declaratoria", { familias: ["sucesorio"] }],
+    [/^SUCESION\.?\s*INSCRIPCION|INSCRIPCION DE (LA )?DECLARATORIA|^SUCESION EN TRAMITES PARA INSCRIBIR/, "etapa", "inscripcion", { familias: ["sucesorio"] }],
+    [/^PROTOCOLIZACION DE TESTAMENTO/, "etapa", "declaratoria", { familias: ["sucesorio"] }],
+    // concursal
+    [/^QUIEBRA: CLAUSURA/, "terminal", "fin_litigio", { familias: ["concursal"] }],
+    [/^PEDIDO DE QUIEBRA.*(RESOLUCION - QUIEBRA|: QUIEBRA$)/, "etapa", "apertura_concurso", { familias: ["concursal"] }],
+    [/^PEDIDO DE QUIEBRA/, "etapa", "demanda", { familias: ["concursal"] }],
+    [/^PEDIDO DE RECAUDOS/, "etapa", "apertura_concurso", { familias: ["concursal"] }],
+    [/^INFORME INDIVIDUAL|^RESOLUCION VERIFICATORIA/, "etapa", "verificacion", { familias: ["concursal"] }],
+    [/^INFORME GENERAL/, "etapa", "informe_general", { familias: ["concursal"] }],
+    [/^RESOLUCION DE CATEGORIZACION/, "etapa", "categorizacion", { familias: ["concursal"] }],
+    [/^RESOLUCION OBTENCION DE MAYORIAS/, "etapa", "acuerdo", { familias: ["concursal"] }],
+    [/^HOMOLOGACION/, "etapa", "homologacion", { familias: ["concursal"] }],
+    // ejecutivo
+    [/^SE(N?)TENCIA DE TRANCE Y REMATE|^SENTENCIA EJECUCION FISCAL|^SENTENCIA DE REMATE/, "etapa", "sentencia_remate", { familias: ["ejecutivo"] }],
+    [/^EJECUTIVO\.?\s*(CITACION DEL DEUDOR|MANDAMIENTO|INTIMACION)/, "etapa", "traba_litis", { familias: ["ejecutivo"] }],
+
+    // ===== administrativos (alto volumen — cortar temprano) =====
+    [/^(EN LETRA|EN DESPACHO|A DESPACHO|EN CONFRONTE|CONFRONTE|EN ESTUDIO|SIN DEFINIR|PRIMER DESPACHO|ESCRITO A DESPACHO|A LA FIRMA|PARA NOTIFICAR|PARA DECRETAR|A LA OFICINA|NOTIFICACION POR SECRETARIA|NOTIFICACION DE LA JUEZ|CONFECCION CEDULA|OFICIO\b|CIRCULACION DE LA CAUSA|CASILLERO|READJUDICACION|ACUMULA|RESERVADO|EN CAJA DE SEGURIDAD|PRESTAMO|EN PRESTAMO|EXPEDIENTE PRESTADO|PROVIDENCIAS VARIAS|NOTIFICACION BAJO RESPONSABILIDAD|O R D I N A R I O|PREPAR PARA PASES)/, "administrativo", null],
+
+    // ===== circulación / ubicación (lo resuelve trayectoria.js) =====
+    [/^(DEVOLUCION|ELEVACION|REMISION|REINGRESO|INGRESO DE OTRO (JUZGADO|FUERO)|RECEPCION|EXPEDIENTE RESUELTO (REMIT|INGRE)|DEVOLUCION DE EXHORTO|PASE\b|DEX\b|REMIT\.)/, "traslado", null],
+
+    // ===== suspensión / reanudación =====
+    [/^(SACADO DE PARALIZADO|DESARCHIV|EXPEDIENTE DESPARALIZADO)/, "reanudacion", null],
+    [/^(PARALIZADO|EXPTE\.? PARALIZADO|EXPEDIENTE PARALIZADO|ARCHIVO PROVISORIO)/, "suspension", null],
+
+    // ===== incidentales (no mueven la etapa principal) =====
+    [/^APERTURA RECURSO:? HONORARIOS/, "incidental", null],
+    [/^FINALIZACION ETAPA - SENTENCIA INTERLOCUTORIA/, "incidental", null],
+    [/^(ACLARATORIA|MEDIDAS PRECAUTORIAS|MEDIDA CAUTELAR|PAGO |BENEFICIO DE LITIGAR|EXHIBICION DE LIBROS|PRUEBA ANTICIPADA|DILIGENCIAS PRELIMINARES|RECURSO DE REPOSICION|VUELTA A MEDIACION|VISTA FISCAL|HONORARIOS|RECUSACION|REMOCION DE PERITO|RESOLUCION NO DEFINITIVA|TASA SATISFECHA|IMPUGNACION PERICIA|INTERVENCION DE TERCEROS)/, "incidental", null],
+    // FINALIZACION ETAPA con sufijos estadísticos (COMPUTABLE / NO COMPUTABLE /
+    // DEVOLUCION / DESISTIMIENTO) — marcadores internos de Lex100, no etapa.
+    [/^FINALIZACION ETAPA - (COMPUTABLE|NO COMPUTABLE|DEVOLUCION|DESISTIMIENTO)/, "incidental", null],
+
+    // ===== terminales =====
+    [/^RESOL\.? QUE PONE FIN AL LITIGIO|^RESOLUCION QUE FINALIZA EL LITIGIO/, "terminal", "fin_litigio"],
+    [/^(ACUERDO TRANSACCIONAL HOMOLOGADO|HOMOLOGACION ACUERDO|HOMOLOGACION$|ACUERDO$|CONCILIACION)/, "terminal", "fin_litigio"],
+    [/^(SENTENCIA FIRME|OBJETO CUMPLIDO|COSA JUZGADA|DESISTIM|DECLARACION DE INCOMPETENCIA|TRANSACCION)/, "terminal", "fin_litigio"],
+    [/^(ARCHIVESE|ARCHIVO\b|ARCHIVADO|REMISION AL ARCHIVO|JUICIO TERMINADO)/, "terminal", "archivo"],
+
+    // ===== etapas del tronco ordinario =====
+    [/^(INICIO ?\/ ?DEMANDA|INICIO TRAMITE|INICIO$|INICIA$|INICIO -|PRIMERA PROVIDENCIA|INTIMACIONES PREVIAS|DEMANDA$|EJECUTIVO INICIACION|ENDEREZA DEMANDA)/, "etapa", "demanda"],
+    [/^(TRABA DE LITIS|TRASLADO DE (LA )?DEMANDA|TRASLADO - .*DEMANDA|DEMANDA\.)/, "etapa", "traba_litis"],
+    [/^(CONTESTACION (DE )?DEMANDA|CONTESTACION CITADA EN GARANTIA|CONTESTA TRASLADO|EXCEPCIONES PREVIAS|INTEGRACION DE LITIS|ART\.? ?547)/, "etapa", "traba_litis"],
+    [/^TRASLADO - .*LIQUIDACI/, "etapa", "ejecucion"],
+    [/^TRASLADO - .*PURO DERECHO/, "etapa", "puro_derecho"],
+    [/^(PRUEBA|AUDIENCIA PRELIMINAR|AUDIENCIA ART\.? ?360|AUDIENCIA DE VISTA DE CAUSA|APERTURA A PRUEBA|PRODUCCION DE PRUEBA|PRESENTACION DEL INFORME PERICIAL|CLAUSURA PRUEBA|CLAUSURA DE(L PERIODO DE)? PRUEBA|JUICIO RECIBIDO A PRUEBA|AUDIENCIA CONCILIACION PREVIA)/, "etapa", "prueba"],
+    [/^(ALEGATOS|CONCLUSION DE LA CAUSA PARA DEFINITIVA)/, "etapa", "alegatos"],
+    [/^DECLARAC(\.|ION)? ?(DE )?PURO DERECHO/, "etapa", "puro_derecho"],
+    [/^(LLAMAMIENTO DE AUTOS|LLAMADO DE AUTOS|AUTOS PARA SENTENCIA|AUTOS$)/, "etapa", "autos_sentencia"],
+    [/^(FINALIZACION ETAPA - SENTENCIA DEFINITIVA|FINALIZACION ETAPA$|SENTENCIA DE PRIMERA INSTANCIA|SENTENCIA$|SENTENCIA DEFINITIVA|SENTENCIA \(INCLUIDAS|FALLO)/, "etapa", "sentencia_primera"],
+    // Traslados con sufijo inequívoco de segunda instancia (contestación de
+    // agravios art. 265, expresión de agravios).
+    [/^TRASLADO - .*(265|AGRAVIOS)/, "etapa", "segunda_instancia"],
+    // "TRASLADO" a secas es ambiguo por contexto (muy frecuente en CSS): en
+    // primera instancia es el traslado de la demanda; en segunda puede ser el
+    // del art. 259 o el del recurso extraordinario. Se resuelve en
+    // deriveEtapaProcesal según la etapa vigente al momento del evento:
+    // etapa temprana (rank < prueba) → traba_litis; posterior → actividad
+    // dentro de la etapa vigente (no avanza).
+    [/^TRASLADO( - |$)/, "contextual", "traslado"],
+    [/^(APERTURA RECURSO|MEMORIAL|ART\.? ?259|CONCESION DEL RECURSO|RECURSO DE APELACION|EXPRESION DE AGRAVIOS|APELACION|EXPEDIENTE ELEVACION A CAMARA|PLANTEO DEL RECURSO)/, "etapa", "segunda_instancia"],
+    [/^(SENTENCIA DE CAMARA|RESOLUCION DE CAMARA|FALLO DE CAMARA)/, "etapa", "sentencia_camara"],
+    [/^(RECURSO EXTRAORDINARIO|QUEJA|RECURSO DE QUEJA|REX\b)/, "etapa", "recurso_extraordinario"],
+    [/^(EJECUCION DE SENTENCIA|EN ETAPA DE EJECUCION|INTIMACION CUMPLIMIENTO|EJECUCION FISCAL$|LIQUIDACION$|APROBACION DE LIQUIDACION|SUBASTA)/, "etapa", "ejecucion"],
+];
+
+/**
+ * Clasifica el detalle de un movimiento CAMBIO DE ESTADO.
+ * @returns {{categoria: string, etapa: string|null, rank: number|null}|null}
+ *          null si no matchea ninguna regla (desconocido).
+ */
+function classifyEstado(detalle, familia, fuero) {
+    const d = norm(detalle);
+    if (!d) return null;
+    const f = familia || "ordinario";
+    const fu = fuero ? norm(fuero) : null;
+    for (const [re, categoria, etapa, opts] of REGLAS) {
+        if (opts && opts.familias && !opts.familias.includes(f)) continue;
+        if (opts && opts.fueros && (!fu || !opts.fueros.includes(fu))) continue;
+        if (re.test(d)) {
+            const rank = etapa && ETAPAS[etapa] ? ETAPAS[etapa].rank : null;
+            return { categoria, etapa: etapa || null, rank };
+        }
+    }
+    return null;
+}
+
+// ---------------------------------------------------------------------------
+// Timeline
+// ---------------------------------------------------------------------------
+
+const RE_TIPO_ESTADO = /CAMBIO DE ESTADO/i;
+const DAY = 24 * 60 * 60 * 1000;
+
+function dayKey(d) {
+    return d.toISOString().slice(0, 10);
+}
+
+// Extrae los eventos CAMBIO DE ESTADO con fecha válida en orden cronológico
+// ascendente (empate de fecha: orden inverso al del array original — el portal
+// lista de más nuevo a más viejo) y el asOf (último movimiento de CUALQUIER
+// tipo — hasta cuándo "sabemos").
+function buildEventos(movimientos) {
+    const eventos = [];
+    let asOf = null;
+    (movimientos || []).forEach((m, i) => {
+        const f = m && m.fecha ? new Date(m.fecha) : null;
+        if (!f || isNaN(f)) return;
+        if (!asOf || f > asOf) asOf = f;
+        if (!RE_TIPO_ESTADO.test(m.tipo || "")) return;
+        eventos.push({ fecha: f, detalle: m.detalle || "", idx: i });
+    });
+    eventos.sort((a, b) => (a.fecha - b.fecha) || (b.idx - a.idx));
+    return { eventos, asOf };
+}
+
+// Motor común de derive/update: procesa `eventos` (ya ordenados) partiendo del
+// estado `seed` y devuelve el estado final + los segmentos nuevos creados.
+// Compacta por día (dentro de un mismo día solo cuenta el evento de etapa de
+// mayor rank — evita falsos retrocesos por pares tipo "ART 259" + "INICIO
+// TRAMITE" cargados juntos) y aplica progresividad: un rank menor en día
+// posterior abre segmento marcado retroceso: true (nunca se descarta).
+function runEngine(eventos, familia, fu, seed) {
+    const st = {
+        cur: seed.cur || null, // segmento abierto {etapa, rank, desde, hasta}
+        terminal: !!seed.terminal,
+        paralizado: !!seed.paralizado,
+        paralizadoDesde: seed.paralizadoDesde || null,
+        suspensiones: [],   // suspensiones CERRADAS durante esta corrida
+        nuevos: [],         // segmentos creados en esta corrida
+        curCerrado: false,  // true si el segmento seed quedó cerrado
+        eventos: 0,
+        clasificados: 0,
+        sinClasificar: new Map(),
+    };
+
+    // 1. Clasificar; suspensiones inline; compactar etapas por día.
+    const porDia = new Map();
+    for (const ev of eventos) {
+        st.eventos++;
+        const c = classifyEstado(ev.detalle, familia, fu);
+        if (!c) {
+            const k = norm(ev.detalle).slice(0, 80);
+            st.sinClasificar.set(k, (st.sinClasificar.get(k) || 0) + 1);
+            continue;
+        }
+        st.clasificados++;
+        if (c.categoria === "suspension") {
+            if (!st.paralizado) { st.paralizado = true; st.paralizadoDesde = ev.fecha; }
+            continue;
+        }
+        if (c.categoria === "reanudacion") {
+            if (st.paralizado) {
+                st.suspensiones.push({ desde: st.paralizadoDesde, hasta: ev.fecha });
+                st.paralizado = false; st.paralizadoDesde = null;
+            }
+            continue;
+        }
+        if (c.categoria === "contextual") {
+            // Ambiguo (p.ej. "TRASLADO" a secas): se resuelve en la pasada
+            // cronológica según la etapa vigente. Solo se registra si el día
+            // no tiene ya un evento concreto.
+            const k = dayKey(ev.fecha);
+            if (!porDia.has(k)) porDia.set(k, { fecha: ev.fecha, contextual: c.etapa, etapa: null, rank: null, categoria: "contextual" });
+            continue;
+        }
+        if (c.categoria !== "etapa" && c.categoria !== "terminal") continue;
+        const k = dayKey(ev.fecha);
+        const prev = porDia.get(k);
+        if (!prev || prev.categoria === "contextual" || (c.rank || 0) > (prev.rank || 0)) {
+            porDia.set(k, { fecha: ev.fecha, etapa: c.etapa, rank: c.rank, categoria: c.categoria });
+        }
+    }
+
+    // 2. Fold cronológico de los días compactados sobre el segmento vigente.
+    const dias = [...porDia.values()].sort((a, b) => a.fecha - b.fecha);
+    for (const ev of dias) {
+        if (ev.categoria === "contextual") {
+            // Resolución contextual (hoy solo "TRASLADO"): en etapa temprana es
+            // el traslado de la demanda → traba_litis; en revisión o posterior
+            // es el traslado del art. 259 / del REX → actividad dentro de la
+            // etapa vigente, no la mueve.
+            if (st.cur && (st.cur.rank || 0) >= ETAPAS.prueba.rank) continue;
+            ev.etapa = "traba_litis";
+            ev.rank = ETAPAS.traba_litis.rank;
+            ev.categoria = "etapa";
+        }
+        if (st.cur && ev.etapa === st.cur.etapa) continue; // repetición de la misma etapa
+        if (st.cur) {
+            st.cur.hasta = ev.fecha;
+            if (st.nuevos.indexOf(st.cur) === -1) st.curCerrado = true;
+        }
+        const seg = { etapa: ev.etapa, rank: ev.rank, desde: ev.fecha, hasta: null };
+        if (st.cur && (ev.rank || 0) < (st.cur.rank || 0)) seg.retroceso = true;
+        st.nuevos.push(seg);
+        st.cur = seg;
+        // un evento de etapa posterior "desconfirma" el cierre (p.ej. desarchivo)
+        st.terminal = ev.categoria === "terminal";
+    }
+    return st;
+}
+
+// Calcula `dias` de cada segmento (los abiertos se miden contra asOf, no
+// contra hoy — la causa puede estar desactualizada) y arma el objeto final.
+function assemble(familia, timeline, st, suspensiones, asOf, counters) {
+    for (const seg of timeline) {
+        const fin = seg.hasta || asOf;
+        seg.dias = fin && seg.desde ? Math.max(0, Math.round((fin - seg.desde) / DAY)) : null;
+    }
+    const last = timeline[timeline.length - 1] || null;
+    return {
+        familia,
+        timeline,
+        etapaActual: last ? last.etapa : null,
+        rankActual: last ? last.rank : null,
+        fase: last ? faseDeRank(last.rank) : null,
+        terminal: st.terminal,
+        paralizado: st.paralizado,
+        suspensiones,
+        asOf,
+        eventosEstado: counters.eventos,
+        eventosClasificados: counters.clasificados,
+        sinClasificar: counters.sinClasificar,
+        confianza: counters.eventos ? +(counters.clasificados / counters.eventos).toFixed(3) : 0,
+        version: VERSION,
+    };
+}
+
+/**
+ * Deriva el timeline de etapas procesales de una causa desde cero.
+ *
+ * @param {Array} movimientos  array movimiento[] de la causa ({tipo, detalle, fecha})
+ * @param {string} fuero       código canónico (CNT/CSS/CIV/COM/...) o alias
+ * @param {string} objeto      objeto de la causa (para detectar familia)
+ * @returns objeto con familia, timeline con desde/hasta/dias, etapaActual, etc.
+ */
+function deriveEtapaProcesal(movimientos, fuero, objeto) {
+    const familia = detectFamilia(fuero, objeto);
+    const fu = fuero ? norm(fuero) : null;
+    const { eventos, asOf } = buildEventos(movimientos);
+    const st = runEngine(eventos, familia, fu, {});
+    const suspensiones = st.suspensiones.slice();
+    if (st.paralizado) suspensiones.push({ desde: st.paralizadoDesde, hasta: null });
+    return assemble(familia, st.nuevos, st, suspensiones, asOf, {
+        eventos: st.eventos,
+        clasificados: st.clasificados,
+        sinClasificar: [...st.sinClasificar.entries()].map(([detalle, n]) => ({ detalle, n })),
+    });
+}
+
+/**
+ * Actualización INCREMENTAL: completa el timeline persistido con los eventos
+ * posteriores a `prev.asOf` en vez de reprocesar toda la causa. Cae
+ * automáticamente a recomputo completo (deriveEtapaProcesal) cuando el
+ * incremental no es seguro:
+ *   - sin precomputo previo o sin asOf            (motivo: sin-precomputo)
+ *   - reglas más nuevas que las del precomputo    (motivo: version)
+ *   - cambió la familia (objeto corregido)        (motivo: familia)
+ *   - aparecieron eventos de estado en días <= asOf que el precomputo no vio
+ *     (re-scrape que descubrió movimientos viejos / VER HISTÓRICAS / merge) —
+ *     un fold incremental daría un timeline erróneo (motivo: eventos-retroactivos)
+ *
+ * El corte es por DÍA: eventos nuevos en el mismo día que asOf también fuerzan
+ * recomputo (la compactación por día debe rehacerse). El estado necesario para
+ * retomar (último segmento abierto, suspensión abierta, terminal, contadores)
+ * sale del propio subdoc persistido.
+ *
+ * @param {Object} prev        subdoc etapaProcesal persistido (plain object o
+ *                             doc Mongoose — se normaliza)
+ * @param {Array}  movimientos array movimiento[] COMPLETO actual de la causa
+ * @param {string} fuero
+ * @param {string} objeto
+ * @returns mismo shape que deriveEtapaProcesal + { modo: 'incremental'|'full',
+ *          motivo } (campos informativos — el schema no los persiste)
+ */
+function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
+    const full = (motivo) =>
+        Object.assign(deriveEtapaProcesal(movimientos, fuero, objeto), { modo: "full", motivo });
+
+    if (prev && typeof prev.toObject === "function") prev = prev.toObject();
+    if (!prev || !prev.asOf) return full("sin-precomputo");
+    if (prev.version !== VERSION) return full("version");
+
+    const familia = detectFamilia(fuero, objeto);
+    if (prev.familia && prev.familia !== familia) return full("familia");
+    const fu = fuero ? norm(fuero) : null;
+
+    const { eventos, asOf } = buildEventos(movimientos);
+    const corte = dayKey(new Date(prev.asOf));
+    const viejos = eventos.filter((e) => dayKey(e.fecha) <= corte);
+    // Si la cantidad de eventos hasta el corte no coincide con lo que vio el
+    // precomputo, aparecieron (o desaparecieron) eventos retroactivos.
+    if (viejos.length !== prev.eventosEstado) return full("eventos-retroactivos");
+    const nuevos = eventos.filter((e) => dayKey(e.fecha) > corte);
+
+    // Seed desde el estado persistido.
+    const prevTimeline = (prev.timeline || []).map((s) => ({
+        etapa: s.etapa,
+        rank: s.rank,
+        desde: s.desde ? new Date(s.desde) : null,
+        hasta: s.hasta ? new Date(s.hasta) : null,
+        ...(s.retroceso ? { retroceso: true } : {}),
+    }));
+    const lastSeg = prevTimeline[prevTimeline.length - 1] || null;
+    const prevSusp = (prev.suspensiones || []).map((s) => ({
+        desde: s.desde ? new Date(s.desde) : null,
+        hasta: s.hasta ? new Date(s.hasta) : null,
+    }));
+    const abierta = prevSusp.find((s) => !s.hasta) || null;
+
+    const st = runEngine(nuevos, familia, fu, {
+        cur: lastSeg,
+        terminal: prev.terminal,
+        paralizado: !!abierta,
+        paralizadoDesde: abierta ? abierta.desde : null,
+    });
+
+    // Ensamblar: timeline previo (el último segmento pudo cerrarse en el fold)
+    // + segmentos nuevos; suspensiones cerradas previas + resultado del fold.
+    const timeline = prevTimeline.concat(st.nuevos);
+    const suspensiones = prevSusp.filter((s) => s.hasta).concat(st.suspensiones);
+    if (st.paralizado) suspensiones.push({ desde: st.paralizadoDesde, hasta: null });
+
+    const prevSin = new Map((prev.sinClasificar || []).map((x) => [x.detalle, x.n]));
+    for (const [k, n] of st.sinClasificar) prevSin.set(k, (prevSin.get(k) || 0) + n);
+
+    const nuevoAsOf = asOf && prev.asOf ? (asOf > new Date(prev.asOf) ? asOf : new Date(prev.asOf)) : (asOf || new Date(prev.asOf));
+    const resultado = assemble(familia, timeline, st, suspensiones, nuevoAsOf, {
+        eventos: (prev.eventosEstado || 0) + st.eventos,
+        clasificados: (prev.eventosClasificados || 0) + st.clasificados,
+        sinClasificar: [...prevSin.entries()].map(([detalle, n]) => ({ detalle, n })),
+    });
+    return Object.assign(resultado, { modo: "incremental", motivo: null });
+}
+
+module.exports = {
+    VERSION,
+    ETAPAS,
+    REGLAS,
+    detectFamilia,
+    classifyEstado,
+    deriveEtapaProcesal,
+    updateEtapaProcesal,
+    faseDeRank,
+    _norm: norm,
+};

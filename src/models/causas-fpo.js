@@ -374,5 +374,6 @@ CausasFPOSchema.statics.safeSave = async function(docData) {
 
 // Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
 CausasFPOSchema.add(require("../shared/sentencias-scan-fields"));
+CausasFPOSchema.add(require("../shared/etapa-procesal-fields"));
 
 module.exports = mongoose.models.CausasFPO || mongoose.model("CausasFPO", CausasFPOSchema);

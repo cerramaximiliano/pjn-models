@@ -374,5 +374,6 @@ CausasFROSchema.statics.safeSave = async function(docData) {
 
 // Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
 CausasFROSchema.add(require("../shared/sentencias-scan-fields"));
+CausasFROSchema.add(require("../shared/etapa-procesal-fields"));
 
 module.exports = mongoose.models.CausasFRO || mongoose.model("CausasFRO", CausasFROSchema);

@@ -374,5 +374,6 @@ CausasFMZSchema.statics.safeSave = async function(docData) {
 
 // Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
 CausasFMZSchema.add(require("../shared/sentencias-scan-fields"));
+CausasFMZSchema.add(require("../shared/etapa-procesal-fields"));
 
 module.exports = mongoose.models.CausasFMZ || mongoose.model("CausasFMZ", CausasFMZSchema);

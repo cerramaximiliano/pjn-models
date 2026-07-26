@@ -374,5 +374,6 @@ CausasFCRSchema.statics.safeSave = async function(docData) {
 
 // Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
 CausasFCRSchema.add(require("../shared/sentencias-scan-fields"));
+CausasFCRSchema.add(require("../shared/etapa-procesal-fields"));
 
 module.exports = mongoose.models.CausasFCR || mongoose.model("CausasFCR", CausasFCRSchema);

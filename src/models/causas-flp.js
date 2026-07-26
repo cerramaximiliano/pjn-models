@@ -374,5 +374,6 @@ CausasFLPSchema.statics.safeSave = async function(docData) {
 
 // Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
 CausasFLPSchema.add(require("../shared/sentencias-scan-fields"));
+CausasFLPSchema.add(require("../shared/etapa-procesal-fields"));
 
 module.exports = mongoose.models.CausasFLP || mongoose.model("CausasFLP", CausasFLPSchema);
