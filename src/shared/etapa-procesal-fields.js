@@ -55,6 +55,13 @@ module.exports = {
 
         // true si el último evento clasificado pone fin al litigio/archiva.
         terminal: { type: Boolean, default: null },
+        // Cómo terminó (solo si terminal=true): etapa terminal + subtipo
+        // normalizado del hito (conciliación/caducidad/desistimiento/...).
+        // Un ARCHIVESE posterior al fin del litigio no pisa el subtipo.
+        resultado: {
+            type: new mongoose.Schema({ etapa: String, detalle: String }, { _id: false }),
+            default: null,
+        },
         // true si el último estado de suspensión sigue abierto (PARALIZADO /
         // ARCHIVO PROVISORIO sin SACADO/DESARCHIVO posterior).
         paralizado: { type: Boolean, default: null },

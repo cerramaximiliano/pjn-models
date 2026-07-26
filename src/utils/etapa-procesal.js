@@ -40,7 +40,7 @@
 // Versión de las reglas de clasificación. Subirla cuando cambie la taxonomía o
 // el mapeo de forma que amerite recomputar el backfill (los docs guardan la
 // versión con la que se computó su etapaProcesal).
-const VERSION = 1;
+const VERSION = 2; // v2: agrega `resultado` (subtipo de terminación)
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -270,6 +270,7 @@ function runEngine(eventos, familia, fu, seed) {
     const st = {
         cur: seed.cur || null, // segmento abierto {etapa, rank, desde, hasta}
         terminal: !!seed.terminal,
+        resultado: seed.resultado || null,
         paralizado: !!seed.paralizado,
         paralizadoDesde: seed.paralizadoDesde || null,
         suspensiones: [],   // suspensiones CERRADAS durante esta corrida
@@ -314,7 +315,7 @@ function runEngine(eventos, familia, fu, seed) {
         const k = dayKey(ev.fecha);
         const prev = porDia.get(k);
         if (!prev || prev.categoria === "contextual" || (c.rank || 0) > (prev.rank || 0)) {
-            porDia.set(k, { fecha: ev.fecha, etapa: c.etapa, rank: c.rank, categoria: c.categoria });
+            porDia.set(k, { fecha: ev.fecha, etapa: c.etapa, rank: c.rank, categoria: c.categoria, detalle: ev.detalle });
         }
     }
 
@@ -342,6 +343,17 @@ function runEngine(eventos, familia, fu, seed) {
         st.cur = seg;
         // un evento de etapa posterior "desconfirma" el cierre (p.ej. desarchivo)
         st.terminal = ev.categoria === "terminal";
+        if (ev.categoria === "terminal") {
+            // Resultado = CÓMO terminó la causa. El subtipo interesante es el
+            // del hito de fin de litigio (conciliación/caducidad/desistimiento/
+            // sentencia firme...); un ARCHIVESE posterior es solo el archivo
+            // físico y no lo pisa.
+            if (ev.etapa !== "archivo" || !st.resultado) {
+                st.resultado = { etapa: ev.etapa, detalle: norm(ev.detalle).slice(0, 80) };
+            }
+        } else {
+            st.resultado = null; // reapertura/desarchivo: la causa siguió
+        }
     }
     return st;
 }
@@ -361,6 +373,9 @@ function assemble(familia, timeline, st, suspensiones, asOf, counters) {
         rankActual: last ? last.rank : null,
         fase: last ? faseDeRank(last.rank) : null,
         terminal: st.terminal,
+        // Cómo terminó (solo si terminal): {etapa: fin_litigio|archivo, detalle:
+        // subtipo normalizado, ej "RESOL. QUE PONE FIN AL LITIGIO: CONCILIACION..."}
+        resultado: st.terminal ? st.resultado : null,
         paralizado: st.paralizado,
         suspensiones,
         asOf,
@@ -457,6 +472,7 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
     const st = runEngine(nuevos, familia, fu, {
         cur: lastSeg,
         terminal: prev.terminal,
+        resultado: prev.resultado ? { etapa: prev.resultado.etapa, detalle: prev.resultado.detalle } : null,
         paralizado: !!abierta,
         paralizadoDesde: abierta ? abierta.desde : null,
     });

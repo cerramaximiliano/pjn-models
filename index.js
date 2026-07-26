@@ -85,4 +85,10 @@ module.exports = {
     // de etapas con desde/hasta/días por causa. Base empírica en
     // docs/etapa-procesal-estados-frecuentes.tsv. Mongoose-agnóstico.
     etapaProcesal: require("./src/utils/etapa-procesal"),
+
+    // Tablas de hechos de estadísticas de etapa procesal (las puebla el worker
+    // etapa-stats de pjn-workers-scraping): segmentos CERRADOS con duración y
+    // transición, y resultados de causas TERMINADAS con subtipo y duraciones.
+    EtapaSegmento: require("./src/models/etapa-segmento"),
+    EtapaResultado: require("./src/models/etapa-resultado"),
 };
