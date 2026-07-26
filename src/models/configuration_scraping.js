@@ -412,6 +412,13 @@ const schema = new mongoose.Schema(
         type: Number,
         default: 5
       },
+      // Guardar los captchas que el modelo deriva por baja confianza. Son los
+      // ejemplos difíciles: entrenar sobre ellos rinde más que sumar fáciles,
+      // de los que ya hay 30.000 en el dataset.
+      hardCapture: {
+        type: Boolean,
+        default: false
+      },
       // Overrides opcionales; normalmente vacíos y se usan los defaults.
       modelPath: {
         type: String,
