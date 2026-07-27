@@ -52,7 +52,11 @@
 //     1ra instancia → sentencia_primera, revisión → sentencia_camara). Cura el
 //     gap observacional de fueros que no registran la sentencia como cambio de
 //     estado (CSS: 0% de sentencia_primera pese a llegar a Cámara).
-const VERSION = 4;
+// v5: SENTENCIA FIRME deja de ser terminal y pasa a etapa propia (rank 85,
+//     post-REX, pre-ejecución): la firmeza es el hito que HABILITA la
+//     ejecución, no el fin de la causa — "sentencia firme → ejecución" es el
+//     flujo normal previsional, no una reapertura.
+const VERSION = 5;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -73,6 +77,7 @@ const ETAPAS = {
     segunda_instancia: { rank: 70, label: "Recurso / segunda instancia" },
     sentencia_camara: { rank: 75, label: "Sentencia / resolución de Cámara" },
     recurso_extraordinario: { rank: 80, label: "Recurso extraordinario" },
+    sentencia_firme: { rank: 85, label: "Sentencia firme" },
     ejecucion: { rank: 90, label: "Ejecución de sentencia" },
     fin_litigio: { rank: 95, label: "Fin del litigio" },
     archivo: { rank: 100, label: "Archivo" },
@@ -192,7 +197,9 @@ const REGLAS = [
     // ===== terminales =====
     [/^RESOL\.? QUE PONE FIN AL LITIGIO|^RESOLUCION QUE FINALIZA EL LITIGIO/, "terminal", "fin_litigio"],
     [/^(ACUERDO TRANSACCIONAL HOMOLOGADO|HOMOLOGACION ACUERDO|HOMOLOGACION$|ACUERDO$|CONCILIACION)/, "terminal", "fin_litigio"],
-    [/^(SENTENCIA FIRME|OBJETO CUMPLIDO|COSA JUZGADA|DESISTIM|DECLARACION DE INCOMPETENCIA|TRANSACCION)/, "terminal", "fin_litigio"],
+    // SENTENCIA FIRME es etapa (rank 85), no terminal: habilita la ejecución.
+    [/^SENTENCIA FIRME/, "etapa", "sentencia_firme"],
+    [/^(OBJETO CUMPLIDO|COSA JUZGADA|DESISTIM|DECLARACION DE INCOMPETENCIA|TRANSACCION)/, "terminal", "fin_litigio"],
     [/^(ARCHIVESE|ARCHIVO\b|ARCHIVADO|REMISION AL ARCHIVO|JUICIO TERMINADO)/, "terminal", "archivo"],
 
     // ===== etapas del tronco ordinario =====
@@ -559,7 +566,7 @@ const PRERREQUISITOS = {
         segunda_instancia: ["sentencia_primera"],
         sentencia_camara: ["sentencia_primera"],
         recurso_extraordinario: ["sentencia_camara", "segunda_instancia"],
-        ejecucion: ["sentencia_primera", "sentencia_camara", "sentencia_remate", "fin_litigio"],
+        ejecucion: ["sentencia_primera", "sentencia_camara", "sentencia_firme", "sentencia_remate", "fin_litigio"],
     },
     sucesorio: {
         inscripcion: ["declaratoria"],
