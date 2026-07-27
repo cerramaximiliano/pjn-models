@@ -77,7 +77,13 @@
 //     de confundirse con sentencia definitiva en la señal de publicación.
 //     (b) fin_litigio → ejecución es CONTINUACIÓN normal (ejecución del
 //     acuerdo conciliatorio/homologado), no reapertura.
-const VERSION = 8;
+// v9: compactación diaria ORDENADA — un mismo día puede registrar una
+//     progresión real (Lex100 carga "SENTENCIA DEFINITIVA" y "EJECUCION DE
+//     SENTENCIA" juntas): se emiten TODOS los eventos de etapa del día en
+//     orden de rank ascendente (dedupe por etapa) en vez de solo el máximo,
+//     que perdía la sentencia. La cura de retrocesos sigue filtrando los
+//     pares regresivos (ART 259 + INICIO TRAMITE).
+const VERSION = 9;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -432,16 +438,13 @@ function runEngine(eventos, familia, fu, seed) {
         }
         if (c.categoria !== "etapa" && c.categoria !== "terminal") continue;
         const k = dayKey(ev.fecha);
-        const prev = porDia.get(k);
-        if (!prev || !prev.categoria || (c.rank || 0) > (prev.rank || 0)) {
-            const slot = prev || { fecha: ev.fecha };
-            slot.etapa = c.etapa;
-            slot.rank = c.rank;
-            slot.categoria = c.categoria;
-            slot.detalle = ev.detalle;
-            slot.esSenal = !!ev.senal;
-            porDia.set(k, slot);
+        const slot = porDia.get(k) || { fecha: ev.fecha, evs: new Map() };
+        if (!slot.evs) slot.evs = new Map();
+        // Dedupe por etapa dentro del día (se conserva el primero).
+        if (!slot.evs.has(c.etapa)) {
+            slot.evs.set(c.etapa, { fecha: ev.fecha, etapa: c.etapa, rank: c.rank, categoria: c.categoria, detalle: ev.detalle, esSenal: !!ev.senal });
         }
+        porDia.set(k, slot);
     }
 
     // 2. Fold cronológico de los días compactados sobre el segmento vigente.
@@ -451,7 +454,10 @@ function runEngine(eventos, familia, fu, seed) {
     const dias = [...porDia.values()].sort((a, b) => a.fecha - b.fecha);
     const subEventos = [];
     for (const d of dias) {
-        if (d.categoria) subEventos.push({ fecha: d.fecha, etapa: d.etapa, rank: d.rank, categoria: d.categoria, detalle: d.detalle, esSenal: d.esSenal });
+        if (d.evs && d.evs.size) {
+            // Progresión del día: eventos concretos en orden de rank ascendente.
+            for (const e of [...d.evs.values()].sort((a, b) => (a.rank || 0) - (b.rank || 0))) subEventos.push(e);
+        }
         if (d.ctx) subEventos.push({ fecha: d.fecha, categoria: "contextual", contextual: d.ctx.etapa, esSenal: d.ctx.esSenal, detalle: "" });
     }
     for (const ev of subEventos) {
