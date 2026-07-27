@@ -92,7 +92,12 @@
 //     (c) la apelación/resolución de Cámara posteriores a una terminación
 //     interlocutoria son flujo del incidente — no reabren el proceso
 //     principal (solo lo reabre una etapa de primera instancia = revocación).
-const VERSION = 10;
+// v11: la DECLARACIÓN DE INCOMPETENCIA (E INHIBITORIA) recibe el mismo
+//     tratamiento que la inhabilidad de instancia (patrón confirmado en
+//     RUSCITTI c/ PREVENCION 1830/2021): demanda sin aptitud jurisdiccional,
+//     apelación + confirmación de Cámara dentro del incidente, archivo. La
+//     revocación (etapa de primera instancia posterior) sigue reabriendo.
+const VERSION = 11;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -546,15 +551,16 @@ function runEngine(eventos, familia, fu, seed) {
                 st.terminal = true;
                 continue;
             }
-            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA/.test(st.resultado.detalle || "") && (ev.rank || 0) >= 70 && (ev.rank || 0) < 95) {
-                // Terminación por interlocutoria (inhabilidad): la apelación y
-                // la resolución de Cámara posteriores son FLUJO DEL INCIDENTE
-                // — no reabren el proceso principal (v10). Solo una etapa de
-                // primera instancia (revocación) lo reabre.
+            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA/.test(st.resultado.detalle || "") && (ev.rank || 0) >= 70 && (ev.rank || 0) < 95) {
+                // Terminación por interlocutoria (inhabilidad, incompetencia
+                // e inhibitoria — v11, patrón confirmado en RUSCITTI): la
+                // apelación y la resolución de Cámara posteriores son FLUJO
+                // DEL INCIDENTE — no reabren el proceso principal. Solo una
+                // etapa de primera instancia (revocación) lo reabre.
                 st.retrocesosDescartados++;
                 continue;
             }
-            if (st.cur.etapa === "fin_litigio" && ev.etapa === "ejecucion" && !(st.resultado && /INHABILIDAD/.test(st.resultado.detalle || ""))) {
+            if (st.cur.etapa === "fin_litigio" && ev.etapa === "ejecucion" && !(st.resultado && /INHABILIDAD|INCOMPETENCIA/.test(st.resultado.detalle || ""))) {
                 // Ejecución del acuerdo conciliatorio/homologado: continuación
                 // NORMAL del proceso, no reapertura — sin marca de retroceso.
                 st.cur.hasta = ev.fecha;
