@@ -103,7 +103,17 @@
 //     (continuación legítima, no anomalía), se limpia el resultado revocado y
 //     la conformidad no la computa como reapertura. Confirmado en corpus:
 //     ~3.5k causas fin(incompetencia) → autos/sentencia → Cámara.
-const VERSION = 12;
+// v13: modelo COMPLETO del incidente de interlocutoria (caso SOSA agotado por
+//     el usuario): (a) "SENTENCIA INTERLOCUTORIA DEFINITIVA" es marcador de
+//     fin en sí misma; (b) tras el fin interlocutorio, TODO lo que no sea
+//     litigio real (llamamiento, medidas para mejor proveer, sentencias de
+//     Sala — se llamen definitivas o interlocutorias —, REX y denegatoria)
+//     es flujo del incidente: se descarta y la resolución de Sala queda como
+//     hito resolucion_incidente; (c) la revocación real se reconoce solo por
+//     reanudación de litigio (demanda/traba-contestación/prueba/alegatos) o
+//     por hitos de mérito de familias no-ordinarias (declaratoria, etc.).
+//     Verificado: 71% de las "revocaciones" v12 eran mecánica del incidente.
+const VERSION = 13;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -318,8 +328,9 @@ const RE_TIPO_COMUN = /^(EVENTO|FIRMA DESPACHO|MOVIMIENTO)$/i;
 function detectarSenalComun(detalle) {
     const d = norm(detalle);
     if (!d) return null;
-    // Inhabilidad de instancia (v10): terminación anticipada — trunca la demanda.
-    if (/INHABILIDAD DE (LA )?INSTANCIA|FALTA DE APTITUD JURISDICCIONAL/.test(d)) return "inhabilidad";
+    // Inhabilidad de instancia (v10) / interlocutoria definitiva (v13):
+    // terminación anticipada — trunca el proceso.
+    if (/INHABILIDAD DE (LA )?INSTANCIA|FALTA DE APTITUD JURISDICCIONAL|SENTENCIA INTERLOCUTORIA DEFINITIVA/.test(d)) return "inhabilidad";
     // Interlocutoria: hito con flujo propio (no cierra instancia) — v8.
     if (/^SENTENCIA INTERLOCUTORIA|^FINALIZACION ETAPA - SENTENCIA INTERLOCUTORIA/.test(d)) return "interlocutoria";
     if (/INTERLOCUTORIA/.test(d)) return null; // otras menciones: ni etapa ni hito
@@ -402,7 +413,7 @@ function runEngine(eventos, familia, fu, seed) {
         // Inhabilidad de instancia (v10): terminación anticipada que trunca la
         // demanda — cualquier fuente. Registra hito + evento terminal.
         const dNormEv = norm(ev.detalle);
-        if (ev.senal === "inhabilidad" || /INHABILIDAD DE (LA )?INSTANCIA|FALTA DE APTITUD JURISDICCIONAL/.test(dNormEv)) {
+        if (ev.senal === "inhabilidad" || /INHABILIDAD DE (LA )?INSTANCIA|FALTA DE APTITUD JURISDICCIONAL|SENTENCIA INTERLOCUTORIA DEFINITIVA/.test(dNormEv)) {
             st.clasificados++;
             const keyIn = `inhabilidad:${dayKey(ev.fecha)}`;
             if (!st.hitosVistos.has(keyIn)) {
@@ -557,14 +568,31 @@ function runEngine(eventos, familia, fu, seed) {
                 st.terminal = true;
                 continue;
             }
-            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA/.test(st.resultado.detalle || "") && (ev.rank || 0) >= 70 && (ev.rank || 0) < 95) {
-                // Terminación por interlocutoria (inhabilidad, incompetencia
-                // e inhibitoria — v11, patrón confirmado en RUSCITTI): la
-                // apelación y la resolución de Cámara posteriores son FLUJO
-                // DEL INCIDENTE — no reabren el proceso principal. Solo una
-                // etapa de primera instancia (revocación) lo reabre.
-                st.retrocesosDescartados++;
-                continue;
+            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA/.test(st.resultado.detalle || "") && (ev.rank || 0) < 95) {
+                // Terminación por interlocutoria (inhabilidad/incompetencia/
+                // interlocutoria definitiva). Tras ese fin, solo la
+                // reanudación de LITIGIO REAL reabre (revocación): demanda,
+                // traba (no "medidas para mejor proveer"), prueba, alegatos,
+                // o hitos de mérito de familias no-ordinarias (declaratoria,
+                // verificación, remate...). Todo lo demás — llamamiento,
+                // sentencias de Sala, REX — es FLUJO DEL INCIDENTE (v13,
+                // caso SOSA): se descarta y la resolución de Sala queda como
+                // hito resolucion_incidente.
+                const TRONCO = ["demanda", "traba_litis", "prueba", "alegatos", "puro_derecho", "autos_sentencia", "sentencia_primera", "segunda_instancia", "sentencia_camara", "recurso_extraordinario", "sentencia_firme", "ejecucion", "fin_litigio", "archivo"];
+                const esMeritoFamiliar = familia !== "ordinario" && !TRONCO.includes(ev.etapa);
+                const esLitigioReal = (ev.rank || 0) <= 40 &&
+                    !(ev.etapa === "traba_litis" && /MEDIDAS PARA MEJOR PROVEER/.test(norm(ev.detalle || "")));
+                if (!esLitigioReal && !esMeritoFamiliar) {
+                    if ((ev.rank || 0) >= 60) {
+                        const kh = `resincid:${dayKey(ev.fecha)}`;
+                        if (!st.hitosVistos.has(kh)) {
+                            st.hitosVistos.add(kh);
+                            st.hitos.push({ tipo: "resolucion_incidente", fecha: ev.fecha, detalle: norm(ev.detalle || "").slice(0, 60), fuente: "estado" });
+                        }
+                    }
+                    st.retrocesosDescartados++;
+                    continue;
+                }
             }
             if (st.cur.etapa === "fin_litigio" && ev.etapa === "ejecucion" && !(st.resultado && /INHABILIDAD|INCOMPETENCIA/.test(st.resultado.detalle || ""))) {
                 // Ejecución del acuerdo conciliatorio/homologado: continuación
