@@ -113,7 +113,14 @@
 //     reanudación de litigio (demanda/traba-contestación/prueba/alegatos) o
 //     por hitos de mérito de familias no-ordinarias (declaratoria, etc.).
 //     Verificado: 71% de las "revocaciones" v12 eran mecánica del incidente.
-const VERSION = 13;
+// v14: patrón DELELISI (confirmado por el usuario, 35086/2021): con sentencia
+//     firme la causa entra en ejecución y el ping-pong archivo↔ejecución es
+//     la MISMA etapa de ejecución que continúa (desarchivos para ejecutar) —
+//     no reapertura. Requiere mérito o fin del litigio previo (3.362 casos;
+//     los 161 sin mérito quedan marcados). Los planteos que suben a Cámara
+//     durante la ejecución quedan bajo la etapa de ejecución (ya curado).
+//     Además: señal común "LIQUIDACION*" (art. 132 LO) → etapa ejecución.
+const VERSION = 14;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -342,6 +349,10 @@ function detectarSenalComun(detalle) {
     if (/^(SE DICTA )?SENTENCIA (DE )?(TRANCE Y REMATE|TRANCE|VENTA|REMATE)/.test(d)) return "sentencia-remate";
     if (/^SENTENCIAS? DEF/.test(d)) return "sentencia"; // DEFINITIVA + typo DEFINTIVA
     if (/^SENTENCIA$/.test(d)) return "sentencia";
+    // Liquidación (art. 132 LO y variantes): actividad de la etapa de
+    // ejecución — la cura "sin sentencia no hay ejecución" la filtra si es
+    // prematura, y como señal no reabre causas terminadas.
+    if (/^LIQUIDACION/.test(d)) return "ejecucion";
     return null;
 }
 
@@ -351,6 +362,7 @@ const SENAL_DIRECTA = {
     "sentencia-camara": "sentencia_camara",
     "sentencia-remate": "sentencia_remate",
     autos: "autos_sentencia",
+    ejecucion: "ejecucion",
 };
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -396,6 +408,8 @@ function runEngine(eventos, familia, fu, seed) {
         retrocesosDescartados: 0,
         hitos: [],
         hitosVistos: new Set(seed.hitosVistos || []),
+        tuvoMerito: !!seed.tuvoMerito,
+        tuvoFin: !!seed.tuvoFin,
         paralizado: !!seed.paralizado,
         paralizadoDesde: seed.paralizadoDesde || null,
         suspensiones: [],   // suspensiones CERRADAS durante esta corrida
@@ -594,9 +608,11 @@ function runEngine(eventos, familia, fu, seed) {
                     continue;
                 }
             }
-            if (st.cur.etapa === "fin_litigio" && ev.etapa === "ejecucion" && !(st.resultado && /INHABILIDAD|INCOMPETENCIA/.test(st.resultado.detalle || ""))) {
-                // Ejecución del acuerdo conciliatorio/homologado: continuación
-                // NORMAL del proceso, no reapertura — sin marca de retroceso.
+            if (((st.cur.etapa === "fin_litigio") || (st.cur.etapa === "archivo" && (st.tuvoMerito || st.tuvoFin))) && ev.etapa === "ejecucion" && !(st.resultado && /INHABILIDAD|INCOMPETENCIA/.test(st.resultado.detalle || ""))) {
+                // Ejecución del acuerdo conciliatorio/homologado, o la MISMA
+                // ejecución que continúa tras un archivo intermedio (patrón
+                // DELELISI v14 — desarchivos para seguir ejecutando):
+                // continuación NORMAL del proceso, no reapertura.
                 st.cur.hasta = ev.fecha;
                 if (st.nuevos.indexOf(st.cur) === -1) st.curCerrado = true;
                 const segEj = { etapa: ev.etapa, rank: ev.rank, desde: ev.fecha, hasta: null };
@@ -626,6 +642,8 @@ function runEngine(eventos, familia, fu, seed) {
         }
         st.nuevos.push(seg);
         st.cur = seg;
+        if ((seg.rank || 0) >= 60 && (seg.rank || 0) < 70) st.tuvoMerito = true;
+        if (seg.etapa === "fin_litigio") st.tuvoFin = true;
         // un evento de etapa posterior "desconfirma" el cierre (p.ej. desarchivo)
         st.terminal = ev.categoria === "terminal";
         if (ev.categoria === "terminal") {
@@ -770,7 +788,9 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
         resultado: prev.resultado ? { etapa: prev.resultado.etapa, detalle: prev.resultado.detalle } : null,
         paralizado: !!abierta,
         paralizadoDesde: abierta ? abierta.desde : null,
-        hitosVistos: prevHitos.map((h) => `interlocutoria:${dayKey(h.fecha)}`),
+        hitosVistos: prevHitos.map((h) => `${h.tipo === "sentencia_interlocutoria" ? "interlocutoria" : h.tipo === "inhabilidad_instancia" ? "inhabilidad" : "resincid"}:${dayKey(h.fecha)}`),
+        tuvoMerito: prevTimeline.some((s) => (s.rank || 0) >= 60 && (s.rank || 0) < 70),
+        tuvoFin: prevTimeline.some((s) => s.etapa === "fin_litigio"),
     });
 
     // Ensamblar: timeline previo (el último segmento pudo cerrarse en el fold)
