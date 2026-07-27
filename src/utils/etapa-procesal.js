@@ -70,7 +70,14 @@
 //     señales secundarias no pueden reabrir una causa terminada (solo los
 //     estados explícitos); (d) un hito terminal que llega con la causa ya
 //     archivada se absorbe actualizando el subtipo de resultado.
-const VERSION = 7;
+// v8: (a) la SENTENCIA INTERLOCUTORIA es un HITO con flujo propio, no una
+//     etapa: no cierra la instancia (se dicta antes de la definitiva o en
+//     ejecución) y es apelable a Cámara y eventualmente Corte. Se captura en
+//     `hitos[]` desde estados, publicaciones y movimientos comunes — y deja
+//     de confundirse con sentencia definitiva en la señal de publicación.
+//     (b) fin_litigio → ejecución es CONTINUACIÓN normal (ejecución del
+//     acuerdo conciliatorio/homologado), no reapertura.
+const VERSION = 8;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -285,7 +292,9 @@ const RE_TIPO_COMUN = /^(EVENTO|FIRMA DESPACHO|MOVIMIENTO)$/i;
 function detectarSenalComun(detalle) {
     const d = norm(detalle);
     if (!d) return null;
-    if (/INTERLOCUTORIA/.test(d)) return null; // interlocutoria ≠ sentencia de mérito
+    // Interlocutoria: hito con flujo propio (no cierra instancia) — v8.
+    if (/^SENTENCIA INTERLOCUTORIA|^FINALIZACION ETAPA - SENTENCIA INTERLOCUTORIA/.test(d)) return "interlocutoria";
+    if (/INTERLOCUTORIA/.test(d)) return null; // otras menciones: ni etapa ni hito
     // Pase a autos para sentencia (antes que las de sentencia: "A SENTENCIA").
     if (/^(A SENTENCIA|AUTOS (A|PARA) SENTENCIA|PASE A SENTENCIA|VPN A SENTENCIA)/.test(d)) return "autos";
     if (/^SORTEO|^INFORME SORTEO|^EXPEDIENTE A DESPACHO/.test(d)) return null;
@@ -346,6 +355,8 @@ function runEngine(eventos, familia, fu, seed) {
         terminal: !!seed.terminal,
         resultado: seed.resultado || null,
         retrocesosDescartados: 0,
+        hitos: [],
+        hitosVistos: new Set(seed.hitosVistos || []),
         paralizado: !!seed.paralizado,
         paralizadoDesde: seed.paralizadoDesde || null,
         suspensiones: [],   // suspensiones CERRADAS durante esta corrida
@@ -360,6 +371,24 @@ function runEngine(eventos, familia, fu, seed) {
     const porDia = new Map();
     for (const ev of eventos) {
         st.eventos++;
+        // HITO sentencia interlocutoria (v8): no cierra instancia ni mueve la
+        // etapa — se registra en hitos[] con su fuente, venga de un estado,
+        // una publicación o un movimiento común. Dedupe por día.
+        const dNormEv = norm(ev.detalle);
+        if (ev.senal === "interlocutoria" || /SENTENCIA INTERLOCUTORIA/.test(dNormEv)) {
+            st.clasificados++;
+            const key = `interlocutoria:${dayKey(ev.fecha)}`;
+            if (!st.hitosVistos.has(key)) {
+                st.hitosVistos.add(key);
+                st.hitos.push({
+                    tipo: "sentencia_interlocutoria",
+                    fecha: ev.fecha,
+                    detalle: dNormEv.slice(0, 60),
+                    fuente: ev.senal === "interlocutoria" ? "comun" : ev.senal ? "publicacion" : "estado",
+                });
+            }
+            continue;
+        }
         // Señales secundarias: PUBLICACION SENTENCIA y "sentencia" genérica de
         // movimientos comunes son contextuales (la instancia se resuelve en el
         // fold); las específicas (1ra instancia / cámara / remate / autos) son
@@ -476,6 +505,17 @@ function runEngine(eventos, familia, fu, seed) {
                 st.terminal = true;
                 continue;
             }
+            if (st.cur.etapa === "fin_litigio" && ev.etapa === "ejecucion") {
+                // Ejecución del acuerdo conciliatorio/homologado: continuación
+                // NORMAL del proceso, no reapertura — sin marca de retroceso.
+                st.cur.hasta = ev.fecha;
+                if (st.nuevos.indexOf(st.cur) === -1) st.curCerrado = true;
+                const segEj = { etapa: ev.etapa, rank: ev.rank, desde: ev.fecha, hasta: null };
+                st.nuevos.push(segEj);
+                st.cur = segEj;
+                st.terminal = false;
+                continue;
+            }
             // Estado explícito de etapa: reapertura real → abre segmento ⟲.
         }
         if (st.cur) {
@@ -528,6 +568,9 @@ function assemble(familia, timeline, st, suspensiones, asOf, counters) {
         // Eventos de etapa con rank menor al vigente descartados por la cura
         // v3 (incidentes post-etapa). Auditoría del criterio de progresividad.
         retrocesosDescartados,
+        // Hitos del proceso (v8): sentencias interlocutorias — no cierran
+        // instancia ni mueven la etapa; tienen flujo propio (apelables).
+        hitos: (counters.hitos || []).slice(0, 50),
         asOf,
         eventosEstado: counters.eventos,
         eventosClasificados: counters.clasificados,
@@ -556,6 +599,7 @@ function deriveEtapaProcesal(movimientos, fuero, objeto) {
         eventos: st.eventos,
         clasificados: st.clasificados,
         sinClasificar: [...st.sinClasificar.entries()].map(([detalle, n]) => ({ detalle, n })),
+        hitos: st.hitos,
     });
 }
 
@@ -619,12 +663,14 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
     }));
     const abierta = prevSusp.find((s) => !s.hasta) || null;
 
+    const prevHitos = (prev.hitos || []).map((h) => ({ tipo: h.tipo, fecha: new Date(h.fecha), detalle: h.detalle, fuente: h.fuente }));
     const st = runEngine(nuevos, familia, fu, {
         cur: lastSeg,
         terminal: prev.terminal,
         resultado: prev.resultado ? { etapa: prev.resultado.etapa, detalle: prev.resultado.detalle } : null,
         paralizado: !!abierta,
         paralizadoDesde: abierta ? abierta.desde : null,
+        hitosVistos: prevHitos.map((h) => `interlocutoria:${dayKey(h.fecha)}`),
     });
 
     // Ensamblar: timeline previo (el último segmento pudo cerrarse en el fold)
@@ -642,6 +688,7 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
         clasificados: (prev.eventosClasificados || 0) + st.clasificados,
         sinClasificar: [...prevSin.entries()].map(([detalle, n]) => ({ detalle, n })),
         retrocesosPrevios: prev.retrocesosDescartados || 0,
+        hitos: prevHitos.concat(st.hitos).sort((a, b) => a.fecha - b.fecha).slice(0, 50),
     });
     return Object.assign(resultado, { modo: "incremental", motivo: null });
 }

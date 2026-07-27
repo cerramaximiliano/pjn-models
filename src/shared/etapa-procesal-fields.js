@@ -68,6 +68,12 @@ module.exports = {
 
         // Timeline completo de etapas con desde/hasta/días.
         timeline: { type: [TimelineSegmentSchema], default: undefined },
+        // Hitos del proceso (v8): sentencias interlocutorias — no cierran
+        // instancia ni mueven la etapa; flujo propio (apelables a Cámara/Corte).
+        hitos: {
+            type: [new mongoose.Schema({ tipo: String, fecha: Date, detalle: String, fuente: String }, { _id: false })],
+            default: undefined,
+        },
         suspensiones: { type: [SuspensionSchema], default: undefined },
 
         // Eventos de etapa con rank menor al vigente, descartados por la cura
