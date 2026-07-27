@@ -56,7 +56,14 @@
 //     post-REX, pre-ejecución): la firmeza es el hito que HABILITA la
 //     ejecución, no el fin de la causa — "sentencia firme → ejecución" es el
 //     flujo normal previsional, no una reapertura.
-const VERSION = 5;
+// v6: señales de sentencia en movimientos comunes del tribunal (EVENTO /
+//     FIRMA DESPACHO / MOVIMIENTO con detalle "SENTENCIA DEFINITIVA",
+//     "SENTENCIA", "SENTENCIA DE PRIMERA INSTANCIA", "... DE CAMARA",
+//     "... TRANCE Y REMATE") + señal de autos ("A SENTENCIA", "AUTOS A/PARA
+//     SENTENCIA", "PASE A SENTENCIA"). Cura el gap de sentencia_primera de
+//     CSS con FECHA REAL (hallazgo del caso JARA 6755/2019). Se excluyen
+//     interlocutorias, sorteos y escritos de parte.
+const VERSION = 6;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -258,6 +265,35 @@ const RE_TIPO_ESTADO = /CAMBIO DE ESTADO/i;
 // Señal secundaria (v4): el tipo de movimiento "PUBLICACION SENTENCIA" marca
 // que se dictó sentencia aunque el juzgado no haya cargado el cambio de estado.
 const RE_TIPO_PUBLICACION_SENTENCIA = /PUBLICACION SENTENCIA/i;
+// Señales v6: movimientos comunes DEL TRIBUNAL (nunca escritos de parte) cuyo
+// detalle registra el dictado de la sentencia o el pase a autos.
+const RE_TIPO_COMUN = /^(EVENTO|FIRMA DESPACHO|MOVIMIENTO)$/i;
+
+// Clasifica el detalle de un movimiento común. Devuelve la señal o null.
+// Patrones ANCLADOS al inicio para excluir referencias de terceros
+// ("APELA SENTENCIA", "CONCEDE RECURSO ... SENTENCIA", "NOTIFICA SENTENCIA").
+function detectarSenalComun(detalle) {
+    const d = norm(detalle);
+    if (!d) return null;
+    if (/INTERLOCUTORIA/.test(d)) return null; // interlocutoria ≠ sentencia de mérito
+    // Pase a autos para sentencia (antes que las de sentencia: "A SENTENCIA").
+    if (/^(A SENTENCIA|AUTOS (A|PARA) SENTENCIA|PASE A SENTENCIA|VPN A SENTENCIA)/.test(d)) return "autos";
+    if (/^SORTEO|^INFORME SORTEO|^EXPEDIENTE A DESPACHO/.test(d)) return null;
+    if (/^SENTENCIA( DEFINITIVA)? DE PRIMERA INSTANCIA/.test(d)) return "sentencia-primera";
+    if (/^SENTENCIA DE C[AÁ]?MARA/.test(d)) return "sentencia-camara";
+    if (/^(SE DICTA )?SENTENCIA (DE )?(TRANCE Y REMATE|TRANCE|VENTA|REMATE)/.test(d)) return "sentencia-remate";
+    if (/^SENTENCIAS? DEF/.test(d)) return "sentencia"; // DEFINITIVA + typo DEFINTIVA
+    if (/^SENTENCIA$/.test(d)) return "sentencia";
+    return null;
+}
+
+// Resolución de señales directas (no contextuales) del tribunal.
+const SENAL_DIRECTA = {
+    "sentencia-primera": "sentencia_primera",
+    "sentencia-camara": "sentencia_camara",
+    "sentencia-remate": "sentencia_remate",
+    autos: "autos_sentencia",
+};
 const DAY = 24 * 60 * 60 * 1000;
 
 function dayKey(d) {
@@ -279,6 +315,9 @@ function buildEventos(movimientos) {
             eventos.push({ fecha: f, detalle: m.detalle || "", idx: i });
         } else if (RE_TIPO_PUBLICACION_SENTENCIA.test(m.tipo || "")) {
             eventos.push({ fecha: f, detalle: m.detalle || "", idx: i, senal: "publicacion-sentencia" });
+        } else if (RE_TIPO_COMUN.test((m.tipo || "").trim())) {
+            const s = detectarSenalComun(m.detalle);
+            if (s) eventos.push({ fecha: f, detalle: m.detalle || "", idx: i, senal: s });
         }
     });
     eventos.sort((a, b) => (a.fecha - b.fecha) || (b.idx - a.idx));
@@ -311,11 +350,19 @@ function runEngine(eventos, familia, fu, seed) {
     const porDia = new Map();
     for (const ev of eventos) {
         st.eventos++;
-        // Señal secundaria de sentencia (tipo PUBLICACION SENTENCIA): evento
-        // contextual — la instancia se resuelve en el fold según etapa vigente.
-        const c = ev.senal === "publicacion-sentencia"
-            ? { categoria: "contextual", etapa: "publicacion_sentencia", rank: null }
-            : classifyEstado(ev.detalle, familia, fu);
+        // Señales secundarias: PUBLICACION SENTENCIA y "sentencia" genérica de
+        // movimientos comunes son contextuales (la instancia se resuelve en el
+        // fold); las específicas (1ra instancia / cámara / remate / autos) son
+        // eventos de etapa directos.
+        let c;
+        if (ev.senal === "publicacion-sentencia" || ev.senal === "sentencia") {
+            c = { categoria: "contextual", etapa: "publicacion_sentencia", rank: null };
+        } else if (ev.senal && SENAL_DIRECTA[ev.senal]) {
+            const et = SENAL_DIRECTA[ev.senal];
+            c = { categoria: "etapa", etapa: et, rank: ETAPAS[et].rank };
+        } else {
+            c = classifyEstado(ev.detalle, familia, fu);
+        }
         if (!c) {
             const k = norm(ev.detalle).slice(0, 80);
             st.sinClasificar.set(k, (st.sinClasificar.get(k) || 0) + 1);
