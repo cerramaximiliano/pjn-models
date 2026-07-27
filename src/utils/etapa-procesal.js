@@ -63,7 +63,14 @@
 //     SENTENCIA", "PASE A SENTENCIA"). Cura el gap de sentencia_primera de
 //     CSS con FECHA REAL (hallazgo del caso JARA 6755/2019). Se excluyen
 //     interlocutorias, sorteos y escritos de parte.
-const VERSION = 6;
+// v7: pulido de residuos — (a) la compactación diaria conserva señal contextual
+//     Y evento concreto del mismo día (sentencia + pase a autos el mismo día ya
+//     no pierde la sentencia); (b) en familia ejecutivo el estado "EJECUCION
+//     FISCAL" es el inicio del proceso, no la etapa de ejecución; (c) las
+//     señales secundarias no pueden reabrir una causa terminada (solo los
+//     estados explícitos); (d) un hito terminal que llega con la causa ya
+//     archivada se absorbe actualizando el subtipo de resultado.
+const VERSION = 7;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -181,6 +188,9 @@ const REGLAS = [
     [/^HOMOLOGACION/, "etapa", "homologacion", { familias: ["concursal"] }],
     // ejecutivo
     [/^SE(N?)TENCIA DE TRANCE Y REMATE|^SENTENCIA EJECUCION FISCAL|^SENTENCIA DE REMATE/, "etapa", "sentencia_remate", { familias: ["ejecutivo"] }],
+    // En familia ejecutivo el estado "EJECUCION FISCAL" marca el INICIO del
+    // proceso (la causa ES una ejecución), no la etapa post-sentencia.
+    [/^EJECUCION FISCAL/, "etapa", "demanda", { familias: ["ejecutivo"] }],
     [/^EJECUTIVO\.?\s*(CITACION DEL DEUDOR|MANDAMIENTO|INTIMACION)/, "etapa", "traba_litis", { familias: ["ejecutivo"] }],
 
     // ===== administrativos (alto volumen — cortar temprano) =====
@@ -381,24 +391,41 @@ function runEngine(eventos, familia, fu, seed) {
             continue;
         }
         if (c.categoria === "contextual") {
-            // Ambiguo (p.ej. "TRASLADO" a secas): se resuelve en la pasada
-            // cronológica según la etapa vigente. Solo se registra si el día
-            // no tiene ya un evento concreto.
+            // Ambiguo (p.ej. "TRASLADO" a secas, señal de sentencia): se
+            // resuelve en el fold según la etapa vigente. Convive con el
+            // evento concreto del mismo día en un slot aparte — un "pase a
+            // autos" y la señal de sentencia el mismo día no se pisan.
             const k = dayKey(ev.fecha);
-            if (!porDia.has(k)) porDia.set(k, { fecha: ev.fecha, contextual: c.etapa, etapa: null, rank: null, categoria: "contextual" });
+            const slot = porDia.get(k) || { fecha: ev.fecha, etapa: null, rank: null, categoria: null };
+            if (!slot.ctx || c.etapa === "publicacion_sentencia") slot.ctx = { etapa: c.etapa, esSenal: !!ev.senal };
+            porDia.set(k, slot);
             continue;
         }
         if (c.categoria !== "etapa" && c.categoria !== "terminal") continue;
         const k = dayKey(ev.fecha);
         const prev = porDia.get(k);
-        if (!prev || prev.categoria === "contextual" || (c.rank || 0) > (prev.rank || 0)) {
-            porDia.set(k, { fecha: ev.fecha, etapa: c.etapa, rank: c.rank, categoria: c.categoria, detalle: ev.detalle });
+        if (!prev || !prev.categoria || (c.rank || 0) > (prev.rank || 0)) {
+            const slot = prev || { fecha: ev.fecha };
+            slot.etapa = c.etapa;
+            slot.rank = c.rank;
+            slot.categoria = c.categoria;
+            slot.detalle = ev.detalle;
+            slot.esSenal = !!ev.senal;
+            porDia.set(k, slot);
         }
     }
 
     // 2. Fold cronológico de los días compactados sobre el segmento vigente.
+    //    Cada día aporta hasta dos sub-eventos: el concreto primero y la señal
+    //    contextual después (así "pase a autos" + señal de sentencia el mismo
+    //    día produce autos → sentencia, sin perder ninguna).
     const dias = [...porDia.values()].sort((a, b) => a.fecha - b.fecha);
-    for (const ev of dias) {
+    const subEventos = [];
+    for (const d of dias) {
+        if (d.categoria) subEventos.push({ fecha: d.fecha, etapa: d.etapa, rank: d.rank, categoria: d.categoria, detalle: d.detalle, esSenal: d.esSenal });
+        if (d.ctx) subEventos.push({ fecha: d.fecha, categoria: "contextual", contextual: d.ctx.etapa, esSenal: d.ctx.esSenal, detalle: "" });
+    }
+    for (const ev of subEventos) {
         if (ev.categoria === "contextual") {
             if (ev.contextual === "publicacion_sentencia") {
                 // Sentencia dictada (señal PUBLICACION SENTENCIA): en primera
@@ -425,12 +452,31 @@ function runEngine(eventos, familia, fu, seed) {
             }
         }
         if (st.cur && ev.etapa === st.cur.etapa) continue; // repetición de la misma etapa
-        if (st.cur && (ev.rank || 0) < (st.cur.rank || 0) && (st.cur.rank || 0) < ETAPAS.fin_litigio.rank) {
-            // Retroceso dentro del trámite: actividad incidental (p.ej. autos
-            // para resolver honorarios tras la sentencia). NO altera la
-            // progresión — se cuenta para auditoría y se descarta.
-            st.retrocesosDescartados++;
-            continue;
+        if (st.cur && (ev.rank || 0) < (st.cur.rank || 0)) {
+            if ((st.cur.rank || 0) < ETAPAS.fin_litigio.rank) {
+                // Retroceso dentro del trámite: actividad incidental (p.ej.
+                // autos para resolver honorarios tras la sentencia). NO altera
+                // la progresión — se cuenta para auditoría y se descarta.
+                st.retrocesosDescartados++;
+                continue;
+            }
+            // La causa está terminada:
+            if (ev.esSenal) {
+                // Las señales secundarias (publicación, movimientos comunes)
+                // no reabren una causa terminada — solo un estado explícito.
+                st.retrocesosDescartados++;
+                continue;
+            }
+            if (ev.categoria === "terminal") {
+                // Hito terminal tras el archivo (RESOL. FIN llega después del
+                // ARCHIVESE): se absorbe actualizando el subtipo de resultado.
+                if (ev.etapa !== "archivo" || !st.resultado) {
+                    st.resultado = { etapa: ev.etapa, detalle: norm(ev.detalle).slice(0, 80) };
+                }
+                st.terminal = true;
+                continue;
+            }
+            // Estado explícito de etapa: reapertura real → abre segmento ⟲.
         }
         if (st.cur) {
             st.cur.hasta = ev.fecha;
