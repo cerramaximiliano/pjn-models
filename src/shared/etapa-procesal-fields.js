@@ -29,6 +29,10 @@ const TimelineSegmentSchema = new mongoose.Schema(
         // true si el segmento abrió con rank menor al anterior (reenvío,
         // desarchivo, nueva demanda tras incompetencia). Nunca se descartan.
         retroceso: { type: Boolean },
+        // true si la reapertura vino de una REVOCACIÓN (la Cámara rechazó la
+        // interlocutoria de inhabilidad/incompetencia y la demanda continúa).
+        // Continuación legítima — no cuenta como reapertura en conformidad.
+        revocacion: { type: Boolean },
     },
     { _id: false }
 );

@@ -97,7 +97,13 @@
 //     RUSCITTI c/ PREVENCION 1830/2021): demanda sin aptitud jurisdiccional,
 //     apelación + confirmación de Cámara dentro del incidente, archivo. La
 //     revocación (etapa de primera instancia posterior) sigue reabriendo.
-const VERSION = 11;
+// v12: REVOCACIÓN — cuando la Cámara rechaza lo determinado por la
+//     interlocutoria (inhabilidad/incompetencia) la demanda pasa a la
+//     siguiente etapa: la reapertura desde ese fin se marca `revocacion`
+//     (continuación legítima, no anomalía), se limpia el resultado revocado y
+//     la conformidad no la computa como reapertura. Confirmado en corpus:
+//     ~3.5k causas fin(incompetencia) → autos/sentencia → Cámara.
+const VERSION = 12;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -578,8 +584,18 @@ function runEngine(eventos, familia, fu, seed) {
             if (st.nuevos.indexOf(st.cur) === -1) st.curCerrado = true;
         }
         const seg = { etapa: ev.etapa, rank: ev.rank, desde: ev.fecha, hasta: null };
-        // Solo llega acá un rank menor si la causa estaba terminada → reapertura real.
-        if (st.cur && (ev.rank || 0) < (st.cur.rank || 0)) seg.retroceso = true;
+        // Solo llega acá un rank menor si la causa estaba terminada.
+        if (st.cur && (ev.rank || 0) < (st.cur.rank || 0)) {
+            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA/.test(st.resultado.detalle || "")) {
+                // REVOCACIÓN (v12): la Cámara rechazó la interlocutoria — la
+                // demanda continúa a la siguiente etapa. No es anomalía; el
+                // resultado revocado se limpia.
+                seg.revocacion = true;
+                st.resultado = null;
+            } else {
+                seg.retroceso = true;
+            }
+        }
         st.nuevos.push(seg);
         st.cur = seg;
         // un evento de etapa posterior "desconfirma" el cierre (p.ej. desarchivo)
@@ -710,6 +726,7 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
         desde: s.desde ? new Date(s.desde) : null,
         hasta: s.hasta ? new Date(s.hasta) : null,
         ...(s.retroceso ? { retroceso: true } : {}),
+        ...(s.revocacion ? { revocacion: true } : {}),
     }));
     const lastSeg = prevTimeline[prevTimeline.length - 1] || null;
     const prevSusp = (prev.suspensiones || []).map((s) => ({
@@ -797,6 +814,8 @@ function clasificarConformidad(ep) {
         const alts = reglas[etapa];
         if (alts && !alts.some((a) => present.has(a))) faltantes.add(alts[0]);
     }
+    // Las revocaciones (Cámara rechaza la interlocutoria y la demanda sigue)
+    // son continuación legítima — no cuentan como reapertura.
     if (tl.some((s) => s.retroceso)) return { conformidad: "reapertura", faltantes: [...faltantes] };
     if (faltantes.size) return { conformidad: "gap", faltantes: [...faltantes] };
     const merito = [...present].some((e) => ETAPAS[e] && ETAPAS[e].rank >= 60 && ETAPAS[e].rank < 70);
