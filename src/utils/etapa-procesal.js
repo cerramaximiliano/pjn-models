@@ -47,7 +47,12 @@
 //     Única excepción: reapertura desde etapa terminal (fin_litigio/archivo),
 //     que sí abre segmento marcado retroceso. Los descartados se cuentan en
 //     `retrocesosDescartados` para auditoría.
-const VERSION = 3;
+// v4: señal secundaria de sentencia — los movimientos tipo "PUBLICACION
+//     SENTENCIA" cuentan como evento de etapa (resuelto por contexto:
+//     1ra instancia → sentencia_primera, revisión → sentencia_camara). Cura el
+//     gap observacional de fueros que no registran la sentencia como cambio de
+//     estado (CSS: 0% de sentencia_primera pese a llegar a Cámara).
+const VERSION = 4;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -243,6 +248,9 @@ function classifyEstado(detalle, familia, fuero) {
 // ---------------------------------------------------------------------------
 
 const RE_TIPO_ESTADO = /CAMBIO DE ESTADO/i;
+// Señal secundaria (v4): el tipo de movimiento "PUBLICACION SENTENCIA" marca
+// que se dictó sentencia aunque el juzgado no haya cargado el cambio de estado.
+const RE_TIPO_PUBLICACION_SENTENCIA = /PUBLICACION SENTENCIA/i;
 const DAY = 24 * 60 * 60 * 1000;
 
 function dayKey(d) {
@@ -260,8 +268,11 @@ function buildEventos(movimientos) {
         const f = m && m.fecha ? new Date(m.fecha) : null;
         if (!f || isNaN(f)) return;
         if (!asOf || f > asOf) asOf = f;
-        if (!RE_TIPO_ESTADO.test(m.tipo || "")) return;
-        eventos.push({ fecha: f, detalle: m.detalle || "", idx: i });
+        if (RE_TIPO_ESTADO.test(m.tipo || "")) {
+            eventos.push({ fecha: f, detalle: m.detalle || "", idx: i });
+        } else if (RE_TIPO_PUBLICACION_SENTENCIA.test(m.tipo || "")) {
+            eventos.push({ fecha: f, detalle: m.detalle || "", idx: i, senal: "publicacion-sentencia" });
+        }
     });
     eventos.sort((a, b) => (a.fecha - b.fecha) || (b.idx - a.idx));
     return { eventos, asOf };
@@ -293,7 +304,11 @@ function runEngine(eventos, familia, fu, seed) {
     const porDia = new Map();
     for (const ev of eventos) {
         st.eventos++;
-        const c = classifyEstado(ev.detalle, familia, fu);
+        // Señal secundaria de sentencia (tipo PUBLICACION SENTENCIA): evento
+        // contextual — la instancia se resuelve en el fold según etapa vigente.
+        const c = ev.senal === "publicacion-sentencia"
+            ? { categoria: "contextual", etapa: "publicacion_sentencia", rank: null }
+            : classifyEstado(ev.detalle, familia, fu);
         if (!c) {
             const k = norm(ev.detalle).slice(0, 80);
             st.sinClasificar.set(k, (st.sinClasificar.get(k) || 0) + 1);
@@ -331,14 +346,29 @@ function runEngine(eventos, familia, fu, seed) {
     const dias = [...porDia.values()].sort((a, b) => a.fecha - b.fecha);
     for (const ev of dias) {
         if (ev.categoria === "contextual") {
-            // Resolución contextual (hoy solo "TRASLADO"): en etapa temprana es
-            // el traslado de la demanda → traba_litis; en revisión o posterior
-            // es el traslado del art. 259 / del REX → actividad dentro de la
-            // etapa vigente, no la mueve.
-            if (st.cur && (st.cur.rank || 0) >= ETAPAS.prueba.rank) continue;
-            ev.etapa = "traba_litis";
-            ev.rank = ETAPAS.traba_litis.rank;
-            ev.categoria = "etapa";
+            if (ev.contextual === "publicacion_sentencia") {
+                // Sentencia dictada (señal PUBLICACION SENTENCIA): en primera
+                // instancia → sentencia_primera; en revisión → sentencia_camara;
+                // más allá (REX/ejecución/terminal) la cura de retrocesos la
+                // absorbe como incidental.
+                const rankCur = st.cur ? st.cur.rank || 0 : 0;
+                if (rankCur < ETAPAS.segunda_instancia.rank) {
+                    ev.etapa = "sentencia_primera";
+                    ev.rank = ETAPAS.sentencia_primera.rank;
+                } else {
+                    ev.etapa = "sentencia_camara";
+                    ev.rank = ETAPAS.sentencia_camara.rank;
+                }
+                ev.categoria = "etapa";
+            } else {
+                // "TRASLADO" a secas: en etapa temprana es el traslado de la
+                // demanda → traba_litis; en revisión o posterior es el del
+                // art. 259 / del REX → actividad de la etapa vigente, no mueve.
+                if (st.cur && (st.cur.rank || 0) >= ETAPAS.prueba.rank) continue;
+                ev.etapa = "traba_litis";
+                ev.rank = ETAPAS.traba_litis.rank;
+                ev.categoria = "etapa";
+            }
         }
         if (st.cur && ev.etapa === st.cur.etapa) continue; // repetición de la misma etapa
         if (st.cur && (ev.rank || 0) < (st.cur.rank || 0) && (st.cur.rank || 0) < ETAPAS.fin_litigio.rank) {
@@ -516,10 +546,67 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
     return Object.assign(resultado, { modo: "incremental", motivo: null });
 }
 
+// ---------------------------------------------------------------------------
+// Conformidad contra el patrón maestro (conformance checking)
+// ---------------------------------------------------------------------------
+
+// Prerrequisitos por familia: si la etapa (key) está presente en el timeline,
+// al menos UNA de las alternativas debe estar también. La primera alternativa
+// es la "canónica" — es la que se reporta como faltante (candidata a inferirse
+// desde los movimientos en la Fase 2).
+const PRERREQUISITOS = {
+    ordinario: {
+        segunda_instancia: ["sentencia_primera"],
+        sentencia_camara: ["sentencia_primera"],
+        recurso_extraordinario: ["sentencia_camara", "segunda_instancia"],
+        ejecucion: ["sentencia_primera", "sentencia_camara", "sentencia_remate", "fin_litigio"],
+    },
+    sucesorio: {
+        inscripcion: ["declaratoria"],
+    },
+    concursal: {},
+    ejecutivo: {
+        ejecucion: ["sentencia_remate", "sentencia_primera", "fin_litigio"],
+    },
+};
+
+/**
+ * Clasifica una causa TERMINADA contra el patrón maestro de su familia.
+ * El orden ya está garantizado por construcción (cura v3) — lo que se evalúa
+ * es la COMPLETITUD: qué etapas presentes presuponen otras que no se
+ * registraron (gap observacional del Lex100, inferible en Fase 2).
+ *
+ * @param {Object} ep  subdoc etapaProcesal (con timeline y familia)
+ * @returns {{conformidad: string, faltantes: string[]}|null}
+ *   - 'con-merito'  llegó a resolución de mérito (rank 60-69) sin gaps
+ *   - 'anticipada'  terminó (conciliación/caducidad/archivo) sin mérito — legítima
+ *   - 'gap'         etapas presentes presuponen otras no registradas (faltantes)
+ *   - 'reapertura'  contiene segmentos retroceso (reapertura desde terminal)
+ */
+function clasificarConformidad(ep) {
+    const tl = (ep && ep.timeline) || [];
+    if (!tl.length) return null;
+    const familia = ep.familia || "ordinario";
+    const present = new Set(tl.map((s) => s.etapa));
+    const reglas = PRERREQUISITOS[familia] || PRERREQUISITOS.ordinario;
+
+    const faltantes = new Set();
+    for (const etapa of present) {
+        const alts = reglas[etapa];
+        if (alts && !alts.some((a) => present.has(a))) faltantes.add(alts[0]);
+    }
+    if (tl.some((s) => s.retroceso)) return { conformidad: "reapertura", faltantes: [...faltantes] };
+    if (faltantes.size) return { conformidad: "gap", faltantes: [...faltantes] };
+    const merito = [...present].some((e) => ETAPAS[e] && ETAPAS[e].rank >= 60 && ETAPAS[e].rank < 70);
+    return { conformidad: merito ? "con-merito" : "anticipada", faltantes: [] };
+}
+
 module.exports = {
     VERSION,
     ETAPAS,
     REGLAS,
+    PRERREQUISITOS,
+    clasificarConformidad,
     detectFamilia,
     classifyEstado,
     deriveEtapaProcesal,

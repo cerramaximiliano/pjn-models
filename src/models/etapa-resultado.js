@@ -39,6 +39,14 @@ const schema = new mongoose.Schema(
         // demanda → sentencia de primera instancia (null si no hubo sentencia).
         diasHastaSentencia: { type: Number, default: null },
 
+        // Conformidad contra el patrón maestro de la familia (v4):
+        // con-merito | anticipada | gap | reapertura. `faltantes` lista las
+        // etapas presupuestas no registradas (candidatas a inferir en Fase 2).
+        // `firma` es la secuencia completa de etapas ("demanda > ... > archivo").
+        conformidad: { type: String, default: null, index: true },
+        faltantes: { type: [String], default: undefined },
+        firma: { type: String, default: null },
+
         // Hitos por los que pasó (features de resultado).
         tuvoSentencia: { type: Boolean, default: false },
         pasoPorCamara: { type: Boolean, default: false },
