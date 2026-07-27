@@ -83,7 +83,16 @@
 //     orden de rank ascendente (dedupe por etapa) en vez de solo el máximo,
 //     que perdía la sentencia. La cura de retrocesos sigue filtrando los
 //     pares regresivos (ART 259 + INICIO TRAMITE).
-const VERSION = 9;
+// v10: patrón "inhabilidad de instancia" (caso ORTEGA c/ PROVINCIA, revisión
+//     manual del usuario): (a) INHABILIDAD DE INSTANCIA / FALTA DE APTITUD
+//     JURISDICCIONAL en cualquier movimiento = terminación anticipada que
+//     trunca la demanda (fin_litigio con subtipo) + hito; (b) NO puede haber
+//     etapa de ejecución sin sentencia o fin del litigio previos — esas
+//     "ejecuciones" pertenecen al flujo del incidente y se descartan;
+//     (c) la apelación/resolución de Cámara posteriores a una terminación
+//     interlocutoria son flujo del incidente — no reabren el proceso
+//     principal (solo lo reabre una etapa de primera instancia = revocación).
+const VERSION = 10;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -298,6 +307,8 @@ const RE_TIPO_COMUN = /^(EVENTO|FIRMA DESPACHO|MOVIMIENTO)$/i;
 function detectarSenalComun(detalle) {
     const d = norm(detalle);
     if (!d) return null;
+    // Inhabilidad de instancia (v10): terminación anticipada — trunca la demanda.
+    if (/INHABILIDAD DE (LA )?INSTANCIA|FALTA DE APTITUD JURISDICCIONAL/.test(d)) return "inhabilidad";
     // Interlocutoria: hito con flujo propio (no cierra instancia) — v8.
     if (/^SENTENCIA INTERLOCUTORIA|^FINALIZACION ETAPA - SENTENCIA INTERLOCUTORIA/.test(d)) return "interlocutoria";
     if (/INTERLOCUTORIA/.test(d)) return null; // otras menciones: ni etapa ni hito
@@ -377,10 +388,28 @@ function runEngine(eventos, familia, fu, seed) {
     const porDia = new Map();
     for (const ev of eventos) {
         st.eventos++;
+        // Inhabilidad de instancia (v10): terminación anticipada que trunca la
+        // demanda — cualquier fuente. Registra hito + evento terminal.
+        const dNormEv = norm(ev.detalle);
+        if (ev.senal === "inhabilidad" || /INHABILIDAD DE (LA )?INSTANCIA|FALTA DE APTITUD JURISDICCIONAL/.test(dNormEv)) {
+            st.clasificados++;
+            const keyIn = `inhabilidad:${dayKey(ev.fecha)}`;
+            if (!st.hitosVistos.has(keyIn)) {
+                st.hitosVistos.add(keyIn);
+                st.hitos.push({ tipo: "inhabilidad_instancia", fecha: ev.fecha, detalle: dNormEv.slice(0, 60), fuente: ev.senal ? "comun" : "estado" });
+            }
+            const k = dayKey(ev.fecha);
+            const slot = porDia.get(k) || { fecha: ev.fecha, evs: new Map() };
+            if (!slot.evs) slot.evs = new Map();
+            if (!slot.evs.has("fin_litigio")) {
+                slot.evs.set("fin_litigio", { fecha: ev.fecha, etapa: "fin_litigio", rank: ETAPAS.fin_litigio.rank, categoria: "terminal", detalle: ev.detalle, esSenal: false });
+            }
+            porDia.set(k, slot);
+            continue;
+        }
         // HITO sentencia interlocutoria (v8): no cierra instancia ni mueve la
         // etapa — se registra en hitos[] con su fuente, venga de un estado,
         // una publicación o un movimiento común. Dedupe por día.
-        const dNormEv = norm(ev.detalle);
         if (ev.senal === "interlocutoria" || /SENTENCIA INTERLOCUTORIA/.test(dNormEv)) {
             st.clasificados++;
             const key = `interlocutoria:${dayKey(ev.fecha)}`;
@@ -487,6 +516,12 @@ function runEngine(eventos, familia, fu, seed) {
             }
         }
         if (st.cur && ev.etapa === st.cur.etapa) continue; // repetición de la misma etapa
+        if (ev.etapa === "ejecucion" && (!st.cur || (st.cur.rank || 0) < 60)) {
+            // No puede haber ejecución sin sentencia (o fin del litigio)
+            // previa — es actividad del flujo de un incidente (v10).
+            st.retrocesosDescartados++;
+            continue;
+        }
         if (st.cur && (ev.rank || 0) < (st.cur.rank || 0)) {
             if ((st.cur.rank || 0) < ETAPAS.fin_litigio.rank) {
                 // Retroceso dentro del trámite: actividad incidental (p.ej.
@@ -511,7 +546,15 @@ function runEngine(eventos, familia, fu, seed) {
                 st.terminal = true;
                 continue;
             }
-            if (st.cur.etapa === "fin_litigio" && ev.etapa === "ejecucion") {
+            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA/.test(st.resultado.detalle || "") && (ev.rank || 0) >= 70 && (ev.rank || 0) < 95) {
+                // Terminación por interlocutoria (inhabilidad): la apelación y
+                // la resolución de Cámara posteriores son FLUJO DEL INCIDENTE
+                // — no reabren el proceso principal (v10). Solo una etapa de
+                // primera instancia (revocación) lo reabre.
+                st.retrocesosDescartados++;
+                continue;
+            }
+            if (st.cur.etapa === "fin_litigio" && ev.etapa === "ejecucion" && !(st.resultado && /INHABILIDAD/.test(st.resultado.detalle || ""))) {
                 // Ejecución del acuerdo conciliatorio/homologado: continuación
                 // NORMAL del proceso, no reapertura — sin marca de retroceso.
                 st.cur.hasta = ev.fecha;
