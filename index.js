@@ -106,4 +106,11 @@ module.exports = {
     // pipeline de lectura y cómputo de vencimientos. Colección
     // `plazos-notificaciones` en la base local de worker_01.
     PlazoNotificacion: require("./src/models/plazo-notificacion"),
+
+    // Subsistema de plazos (capa 3): reglas de plazo SUBSIDIARIO por acto
+    // notificado (colección `plazos-normativa`, curada por el admin, seed
+    // insert-only) + clasificador puro first-match-wins con fundamento
+    // (patrón + snippet). Resuelve las cédulas sin plazo expreso en el texto.
+    PlazoNormativa: require("./src/models/plazo-normativa"),
+    plazosNormativa: require("./src/utils/plazos-normativa"),
 };
