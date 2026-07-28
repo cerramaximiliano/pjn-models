@@ -87,8 +87,8 @@ const REGLAS = [
         plazoDias: 60,
         norma: "art. 338 CPCCN, 2º párr. (demandada la Nación / ANSES)",
         prioridad: 15,
-        verificado: false,
-        notas: "Regla EMPÍRICA descubierta por el dataset 2026-07-28: los traslados de demanda en CSS (REAJUSTES c/ ANSES) fijan 60 días expresos de forma consistente. Confirmar cita (plazo ampliado para el Estado).",
+        verificado: true,
+        notas: "Regla empírica descubierta por el dataset y CONFIRMADA por el admin 2026-07-28: traslado de demanda con el Estado Nacional como demandada = 60 días.",
     },
 
     // ── Genéricas CPCCN (CIV/COM/CSS y supletorio) ──────────────────────────

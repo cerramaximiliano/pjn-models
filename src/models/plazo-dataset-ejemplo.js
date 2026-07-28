@@ -56,6 +56,10 @@ const schema = new mongoose.Schema(
         // Evidencia (para auditar el ejemplo y citarlo al crear la regla).
         snippet: { type: String, default: null },
         apercibimiento: { type: String, default: null },
+        // Origen normativo del plazo si el texto lo cita junto a la mención
+        // (código procesal, ley especial, acordada) — clave para detectar
+        // normas que exceden los códigos procesales.
+        normaCitada: { type: String, default: null, index: true },
 
         extractorVersion: { type: Number },
         source: { type: String, enum: ["inline", "backfill"], required: true },
