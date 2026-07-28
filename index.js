@@ -117,4 +117,10 @@ module.exports = {
     // Config + heartbeat del plazos-worker (singleton 'global' en
     // plazos-worker-config, editable desde admin vía pjn-api).
     ConfiguracionPlazosWorker: require("./src/models/configuration_plazos_worker"),
+
+    // Dataset de plazos expresos observados en cédulas reales (colección
+    // plazos-dataset): ejemplos etiquetados por el propio tribunal, para
+    // minería de reglas empíricas por (fuero, objeto, acto). Cosechado
+    // inline por plazos-worker + backfill por plazos-dataset-worker.
+    PlazoDatasetEjemplo: require("./src/models/plazo-dataset-ejemplo"),
 };
