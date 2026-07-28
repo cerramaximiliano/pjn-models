@@ -64,9 +64,10 @@ const schema = new mongoose.Schema(
             enum: [
                 "pending", // detectada, a la espera del worker de lectura
                 "no_url", // sin URL de documento — solo cómputo por normativa
+                "processing", // lockeada por un worker (ver processingLock)
                 "downloading",
                 "parsed", // texto extraído, sin plazo expreso todavía
-                "extracted", // plazo expreso extraído del texto
+                "extracted", // plazo expreso extraído, cómputo pendiente
                 "ocr_needed",
                 "ocr_processing",
                 "failed",
@@ -78,6 +79,14 @@ const schema = new mongoose.Schema(
         },
         retryCount: { type: Number, default: 0 },
         lastError: { type: String, default: null },
+        processedAt: { type: Date, default: null },
+
+        // Lock atómico del worker de lectura (patrón sentencias-worker).
+        processingLock: {
+            workerId: { type: String },
+            lockedAt: { type: Date },
+            expiresAt: { type: Date },
+        },
 
         // Resultado de la lectura del documento (capa 2 — la puebla el worker
         // de lectura; Mixed a propósito hasta estabilizar el shape).
