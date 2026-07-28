@@ -60,6 +60,21 @@ const schema = new mongoose.Schema(
         extractorVersion: { type: Number },
         source: { type: String, enum: ["inline", "backfill"], required: true },
         harvestedAt: { type: Date, default: Date.now },
+
+        // Revisión humana desde la admin (tab Dataset → Revisión). Los
+        // 'descartado' (falsos positivos del extractor, menciones que no son
+        // el plazo del acto) se EXCLUYEN de stats y candidatos — así los
+        // casos dispersos se depuran sin borrar la evidencia.
+        revision: {
+            estado: {
+                type: String,
+                enum: ["sin_revisar", "confirmado", "descartado"],
+                default: "sin_revisar",
+                index: true,
+            },
+            notas: { type: String, default: "" },
+            revisadoAt: { type: Date, default: null },
+        },
     },
     {
         collection: "plazos-dataset",
