@@ -127,7 +127,21 @@
 //     incidentes bajo esa terminación/ejecución, no reaperturas. El criterio
 //     de "solo litigio real reabre" (v13, antes exclusivo de interlocutorias)
 //     rige ahora para todo fin/archivo.
-const VERSION = 15;
+// v16 (revisiones del usuario 2026-07-28):
+//     (a) familia RECURSAL — recursos de única instancia ante la Cámara (art.
+//         49.4 ley 24.241, RETIRO POR INVALIDEZ y afines, detección flexible
+//         /INVALID/ en CSS): recurso elevado sin demanda → vista al cuerpo
+//         médico forense (prueba) → alegatos → sentencia de única instancia
+//         (etiquetada sentencia_primera) → REX eventual → archivo.
+//     (b) familia DILIGENCIA — diligencias preliminares / prueba anticipada:
+//         solicitud → admisión → diligencia producida → archivo; sin mérito.
+//     (c) etapa PARTICION (sucesorio, rank 80): partición de bienes posterior
+//         a la declaratoria, con señales del tribunal.
+//     (d) "TRABA DE LITIS: MEDIDAS PARA MEJOR PROVEER" → etapa PRUEBA (no es
+//         traba: son medidas probatorias — caso 46523/2022).
+//     (e) HITO archivo: todos los archivos de la causa quedan registrados en
+//         hitos[] (caso 34249/2023 — archivo por inactividad y continuación).
+const VERSION = 16;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -157,6 +171,7 @@ const ETAPAS = {
     apertura_sucesion: { rank: 10, label: "Apertura de la sucesión" },
     edictos: { rank: 30, label: "Publicación de edictos" },
     declaratoria: { rank: 60, label: "Declaratoria de herederos / aprobación de testamento" },
+    particion: { rank: 80, label: "Partición de bienes" },
     inscripcion: { rank: 90, label: "Inscripción de declaratoria" },
 
     // — familia concursal (COM, objeto CONCURSO/QUIEBRA) —
@@ -188,6 +203,13 @@ function faseDeRank(rank) {
 // El objeto llega normalizado (mayúsculas) o crudo; normalizamos igual.
 function detectFamilia(fuero, objeto) {
     const o = norm(objeto || "");
+    // Diligencias preliminares / prueba anticipada: procesos voluntarios de
+    // obtención de prueba — se chequean ANTES que sucesorio ("SUCESION S/
+    // DILIGENCIAS PRELIMINARES" es una diligencia, no la sucesión).
+    if (/DILIGENCIA|PRUEBA ANTICIPADA|MEDIDA PRELIMINAR/.test(o)) return "diligencia";
+    // Recursos de única instancia ante la Cámara (art. 49.4 ley 24.241 y
+    // afines): detección flexible por INVALID para cubrir variantes y typos.
+    if (/INVALID/.test(o) && /CSS|SEG/.test(norm(fuero || ""))) return "recursal";
     if (/SUCESION/.test(o)) return "sucesorio";
     if (/QUIEBRA|CONCURSO|LIQUIDACION JUDICIAL/.test(o)) return "concursal";
     if (/^EJECUTIVO\b|EJECUCION|^EJEC\b|APREMIO/.test(o)) return "ejecutivo";
@@ -278,6 +300,10 @@ const REGLAS = [
 
     // ===== etapas del tronco ordinario =====
     [/^(INICIO ?\/ ?DEMANDA|INICIO TRAMITE|INICIO$|INICIA$|INICIO -|PRIMERA PROVIDENCIA|INTIMACIONES PREVIAS|DEMANDA$|EJECUTIVO INICIACION|ENDEREZA DEMANDA)/, "etapa", "demanda"],
+    // "Medidas para mejor proveer" NO es traba: son medidas probatorias
+    // dispuestas de oficio (v16, caso 46523/2022 — y la vista al cuerpo médico
+    // forense en los recursos de invalidez).
+    [/^TRABA DE LITIS: MEDIDAS PARA MEJOR PROVEER/, "etapa", "prueba"],
     [/^(TRABA DE LITIS|TRASLADO DE (LA )?DEMANDA|TRASLADO - .*DEMANDA|DEMANDA\.)/, "etapa", "traba_litis"],
     [/^(CONTESTACION (DE )?DEMANDA|CONTESTACION CITADA EN GARANTIA|CONTESTA TRASLADO|EXCEPCIONES PREVIAS|INTEGRACION DE LITIS|ART\.? ?547)/, "etapa", "traba_litis"],
     [/^TRASLADO - .*LIQUIDACI/, "etapa", "ejecucion"],
@@ -360,6 +386,8 @@ function detectarSenalComun(detalle) {
     // ejecución — la cura "sin sentencia no hay ejecución" la filtra si es
     // prematura, y como señal no reabre causas terminadas.
     if (/^LIQUIDACION/.test(d)) return "ejecucion";
+    // Partición de bienes (sucesorio, v16): señales del tribunal.
+    if (/^PARTICION DE BIENES|^SE APRUEBA PARTICION|^ACUERDO PARTICIONARIO|^APROBACION (DEL )?ACUERDO DE PARTICION|^PROVIDENCIA .*PARTICION/.test(d)) return "particion";
     return null;
 }
 
@@ -370,6 +398,7 @@ const SENAL_DIRECTA = {
     "sentencia-remate": "sentencia_remate",
     autos: "autos_sentencia",
     ejecucion: "ejecucion",
+    particion: "particion",
 };
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -475,6 +504,11 @@ function runEngine(eventos, familia, fu, seed) {
         if (ev.senal === "publicacion-sentencia" || ev.senal === "sentencia") {
             c = { categoria: "contextual", etapa: "publicacion_sentencia", rank: null };
         } else if (ev.senal && SENAL_DIRECTA[ev.senal]) {
+            if (ev.senal === "particion" && familia !== "sucesorio") {
+                // La partición solo es etapa en el proceso sucesorio.
+                st.clasificados++;
+                continue;
+            }
             const et = SENAL_DIRECTA[ev.senal];
             c = { categoria: "etapa", etapa: et, rank: ETAPAS[et].rank };
         } else {
@@ -509,6 +543,16 @@ function runEngine(eventos, familia, fu, seed) {
             continue;
         }
         if (c.categoria !== "etapa" && c.categoria !== "terminal") continue;
+        // HITO archivo (v16): todos los archivos de la causa quedan
+        // registrados — incluidos los intermedios por inactividad que luego
+        // se reactivan (caso 34249/2023). No altera el timeline.
+        if (c.etapa === "archivo") {
+            const ka = `archivo:${dayKey(ev.fecha)}`;
+            if (!st.hitosVistos.has(ka)) {
+                st.hitosVistos.add(ka);
+                st.hitos.push({ tipo: "archivo", fecha: ev.fecha, detalle: norm(ev.detalle || "").slice(0, 60), fuente: "estado" });
+            }
+        }
         const k = dayKey(ev.fecha);
         const slot = porDia.get(k) || { fecha: ev.fecha, evs: new Map() };
         if (!slot.evs) slot.evs = new Map();
@@ -615,7 +659,7 @@ function runEngine(eventos, familia, fu, seed) {
                 const TRONCO = ["demanda", "traba_litis", "prueba", "alegatos", "puro_derecho", "autos_sentencia", "sentencia_primera", "segunda_instancia", "sentencia_camara", "recurso_extraordinario", "sentencia_firme", "ejecucion", "fin_litigio", "archivo"];
                 const esMeritoFamiliar = familia !== "ordinario" && !TRONCO.includes(ev.etapa);
                 const esLitigioReal = (ev.rank || 0) <= 40 &&
-                    !(ev.etapa === "traba_litis" && /MEDIDAS PARA MEJOR PROVEER/.test(norm(ev.detalle || "")));
+                    !/MEDIDAS PARA MEJOR PROVEER/.test(norm(ev.detalle || ""));
                 if (!esLitigioReal && !esMeritoFamiliar) {
                     if ((ev.rank || 0) >= 60 && ev.etapa !== "ejecucion") {
                         const kh = `resincid:${dayKey(ev.fecha)}`;
@@ -836,8 +880,17 @@ const PRERREQUISITOS = {
         ejecucion: ["sentencia_primera", "sentencia_camara", "sentencia_firme", "sentencia_remate", "fin_litigio"],
     },
     sucesorio: {
+        particion: ["declaratoria"],
         inscripcion: ["declaratoria"],
     },
+    // Recursal (única instancia): la sentencia de Cámara ES la primera y
+    // única — el REX va directo contra ella; nada exige sentencia_camara.
+    recursal: {
+        recurso_extraordinario: ["sentencia_primera", "sentencia_camara"],
+        ejecucion: ["sentencia_primera", "sentencia_camara", "sentencia_firme", "fin_litigio"],
+    },
+    // Diligencia preliminar / prueba anticipada: sin mérito esperable.
+    diligencia: {},
     concursal: {},
     ejecutivo: {
         ejecucion: ["sentencia_remate", "sentencia_primera", "fin_litigio"],
