@@ -35,9 +35,18 @@ ok("traslado de demanda CIV → 15 días art. 338 (le gana al traslado genérico
     assert.strictEqual(r.plazoDias, 15);
 });
 
-ok("traslado de demanda CSS → cae en traslado genérico (338 es CIV/COM)", () => {
+ok("traslado de demanda CSS → 60 días (Estado/ANSES, regla empírica)", () => {
     const r = clasificarActo(reglas, { texto: "traslado de la demanda", fuero: "CSS" });
-    assert.strictEqual(r.clave, "traslado_generico");
+    assert.strictEqual(r.clave, "traslado_demanda_estado_css");
+    assert.strictEqual(r.plazoDias, 60);
+});
+
+ok("variante real CSS: 'DE LA DEMANDA..., CONFIERO TRASLADO'", () => {
+    const r = clasificarActo(reglas, {
+        texto: "De la demanda, de la prueba documental digitalizada y de su ampliación (si la hubiere), confiero traslado a la demandada.",
+        fuero: "CSS",
+    });
+    assert.strictEqual(r.clave, "traslado_demanda_estado_css");
 });
 
 ok("traslado del REX → 10 días art. 257", () => {

@@ -73,6 +73,24 @@ const REGLAS = [
         notas: "Validado 2026-07-28: 'El plazo para contestar vistas y traslados será de TRES (3) días'. Cubre también la vista de liquidación (el art. 132 no fija plazo propio).",
     },
 
+    // ── CSS (contra el Estado/ANSES) ────────────────────────────────────────
+    {
+        _id: "traslado_demanda_estado_css",
+        label: "Traslado de demanda al Estado/ANSES (CSS)",
+        acto: "traslado_demanda",
+        fuero: ["CSS"],
+        matchers: [
+            "TRASLADO DE (LA )?(ACCION|DEMANDA)",
+            "DE LA DEMANDA[^.]{0,200}(CONFIERO|CORR[AE]SE|SE CORRE)[^.]{0,20}TRASLADO",
+        ],
+        matchersDetalle: ["TRASLADO DE (LA )?DEMANDA"],
+        plazoDias: 60,
+        norma: "art. 338 CPCCN, 2º párr. (demandada la Nación / ANSES)",
+        prioridad: 15,
+        verificado: false,
+        notas: "Regla EMPÍRICA descubierta por el dataset 2026-07-28: los traslados de demanda en CSS (REAJUSTES c/ ANSES) fijan 60 días expresos de forma consistente. Confirmar cita (plazo ampliado para el Estado).",
+    },
+
     // ── Genéricas CPCCN (CIV/COM/CSS y supletorio) ──────────────────────────
     {
         _id: "apelacion_sentencia_definitiva",
