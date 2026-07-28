@@ -91,4 +91,19 @@ module.exports = {
     // transición, y resultados de causas TERMINADAS con subtipo y duraciones.
     EtapaSegmento: require("./src/models/etapa-segmento"),
     EtapaResultado: require("./src/models/etapa-resultado"),
+
+    // Subsistema de plazos procesales (capa 0): calendario de días inhábiles
+    // judiciales (feriados + ferias + asuetos, sembrado por
+    // scripts/maintenance/seed-feriados-judiciales.js y mantenido desde admin)
+    // y lib de cómputo de días hábiles / vencimientos desde notificación
+    // (perfeccionamiento de cédula, art. 156 CPCCN, plazo de gracia art. 124).
+    // Mongoose-agnóstica: recibe el calendario como Set (FeriadoJudicial.getSet).
+    FeriadoJudicial: require("./src/models/feriado-judicial"),
+    diasHabiles: require("./src/utils/dias-habiles"),
+
+    // Subsistema de plazos (capa 1): notificaciones/cédulas detectadas en
+    // movimientos NUEVOS por update-movimientos-worker — cola de entrada del
+    // pipeline de lectura y cómputo de vencimientos. Colección
+    // `plazos-notificaciones` en la base local de worker_01.
+    PlazoNotificacion: require("./src/models/plazo-notificacion"),
 };
