@@ -29,6 +29,13 @@ const schema = new mongoose.Schema(
         // Fueros donde aplica; '*' = todos. Una regla específica de fuero debe
         // tener prioridad menor (evaluarse antes) que su genérica.
         fuero: { type: [String], default: ["*"] },
+        // Objetos del juicio donde aplica; '*' = todos. Regex (strings) sobre
+        // el objeto NORMALIZADO de la causa (p.ej. 'DESPIDO', 'REAJUSTES?',
+        // 'AMPARO', 'EJECUTIV'). El plazo puede variar por objeto (sumarísimo,
+        // amparo, ejecutivo...) — una regla específica de objeto debe tener
+        // prioridad menor que su genérica. Si la regla exige objeto y la causa
+        // no lo tiene, la regla NO aplica.
+        objetos: { type: [String], default: ["*"] },
 
         // Regex (strings) sobre el TEXTO NORMALIZADO de la cédula
         // (mayúsculas, sin tildes — ver _norm del clasificador).

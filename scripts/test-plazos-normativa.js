@@ -92,6 +92,20 @@ ok("sentencia definitiva CNT le gana al catch-all aunque diga notifíquese", () 
     assert.strictEqual(r.plazoDias, 6);
 });
 
+ok("regla específica de objeto solo aplica si el objeto matchea", () => {
+    const conObjeto = [
+        { _id: "amparo_especial", fuero: ["*"], objetos: ["AMPARO"], matchers: ["NOTIFIQUESE"], plazoDias: 3, norma: "x", prioridad: 1 },
+        ...reglas,
+    ];
+    const enAmparo = clasificarActo(conObjeto, { texto: "Notifíquese.", fuero: "CIV", objeto: "ACCION DE AMPARO" });
+    assert.strictEqual(enAmparo.clave, "amparo_especial");
+    const enDanios = clasificarActo(conObjeto, { texto: "Notifíquese.", fuero: "CIV", objeto: "DAÑOS Y PERJUICIOS" });
+    assert.strictEqual(enDanios.clave, "resolucion_notificada");
+    // Sin objeto conocido, la regla específica NO aplica (cae en genérica).
+    const sinObjeto = clasificarActo(conObjeto, { texto: "Notifíquese.", fuero: "CIV" });
+    assert.strictEqual(sinObjeto.clave, "resolucion_notificada");
+});
+
 ok("regla con regex inválida no rompe", () => {
     const rotas = [{ _id: "rota", fuero: ["*"], matchers: ["([inval"], plazoDias: 5, norma: "x", prioridad: 1 }, ...reglas];
     const r = clasificarActo(rotas, { texto: "sentencia definitiva", fuero: "CIV" });

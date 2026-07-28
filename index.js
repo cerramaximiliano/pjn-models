@@ -113,4 +113,8 @@ module.exports = {
     // (patrón + snippet). Resuelve las cédulas sin plazo expreso en el texto.
     PlazoNormativa: require("./src/models/plazo-normativa"),
     plazosNormativa: require("./src/utils/plazos-normativa"),
+
+    // Config + heartbeat del plazos-worker (singleton 'global' en
+    // plazos-worker-config, editable desde admin vía pjn-api).
+    ConfiguracionPlazosWorker: require("./src/models/configuration_plazos_worker"),
 };

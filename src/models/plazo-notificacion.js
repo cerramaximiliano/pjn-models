@@ -30,6 +30,9 @@ const schema = new mongoose.Schema(
         number: { type: Number },
         year: { type: Number },
         fuero: { type: String, required: true },
+        // Objeto del juicio (denormalizado de la causa) — las reglas de
+        // normativa pueden discriminar plazo por objeto además de fuero.
+        objeto: { type: String, default: null },
         caratula: { type: String },
         collection: { type: String }, // nombre de la colección de causas origen
 

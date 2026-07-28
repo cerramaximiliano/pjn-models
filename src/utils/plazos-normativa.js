@@ -42,23 +42,39 @@ function testMatchers(patterns, texto) {
     return null;
 }
 
+// ¿La regla aplica al objeto de la causa? '*' = todos. Si la regla es
+// específica de objeto y la causa no tiene objeto conocido, NO aplica
+// (mejor caer en una regla genérica que aplicar mal una específica).
+function matchObjeto(reglaObjetos, objetoNorm) {
+    const objetos = reglaObjetos && reglaObjetos.length ? reglaObjetos : ["*"];
+    if (objetos.includes("*")) return true;
+    if (!objetoNorm) return false;
+    return objetos.some((p) => {
+        const re = compile(p);
+        return re && re.test(objetoNorm);
+    });
+}
+
 /**
  * @param {Array} reglas — docs lean de PlazoNormativa (orden = prioridad asc)
  * @param {Object} input
  * @param {string} [input.texto] — texto de la cédula (crudo; se normaliza acá)
  * @param {string} [input.detalle] — detalle del movimiento (crudo)
  * @param {string} input.fuero — CIV | CSS | CNT | COM | ...
+ * @param {string} [input.objeto] — objeto del juicio de la causa (crudo)
  * @returns {Object|null} — { clave, acto, label, plazoDias, tipoPlazo, norma,
  *   matchedPattern, matchedIn: 'texto'|'detalle', snippet, verificado } | null
  */
-function clasificarActo(reglas, { texto, detalle, fuero }) {
+function clasificarActo(reglas, { texto, detalle, fuero, objeto }) {
     const t = texto ? norm(texto) : null;
     const d = detalle ? norm(detalle) : null;
+    const o = objeto ? norm(objeto) : null;
 
     for (const r of reglas || []) {
         if (!r || r.habilitado === false) continue;
         const fueros = r.fuero && r.fuero.length ? r.fuero : ["*"];
         if (!fueros.includes("*") && !fueros.includes(fuero)) continue;
+        if (!matchObjeto(r.objetos, o)) continue;
 
         let hit = null;
         let matchedIn = null;
