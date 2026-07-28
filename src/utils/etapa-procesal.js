@@ -120,7 +120,14 @@
 //     los 161 sin mérito quedan marcados). Los planteos que suben a Cámara
 //     durante la ejecución quedan bajo la etapa de ejecución (ya curado).
 //     Además: señal común "LIQUIDACION*" (art. 132 LO) → etapa ejecución.
-const VERSION = 14;
+// v15: incidentes post-fin GENERALIZADOS (caso RUIZ 13477/2021, recurso
+//     27348): tras el fin del litigio (acuerdo en audiencia art. 80, o
+//     cualquier subtipo) sigue la ejecución, y las idas a Cámara por
+//     apelaciones de honorarios o liquidaciones — que pueden repetirse — son
+//     incidentes bajo esa terminación/ejecución, no reaperturas. El criterio
+//     de "solo litigio real reabre" (v13, antes exclusivo de interlocutorias)
+//     rige ahora para todo fin/archivo.
+const VERSION = 15;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -582,33 +589,8 @@ function runEngine(eventos, familia, fu, seed) {
                 st.terminal = true;
                 continue;
             }
-            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA/.test(st.resultado.detalle || "") && (ev.rank || 0) < 95) {
-                // Terminación por interlocutoria (inhabilidad/incompetencia/
-                // interlocutoria definitiva). Tras ese fin, solo la
-                // reanudación de LITIGIO REAL reabre (revocación): demanda,
-                // traba (no "medidas para mejor proveer"), prueba, alegatos,
-                // o hitos de mérito de familias no-ordinarias (declaratoria,
-                // verificación, remate...). Todo lo demás — llamamiento,
-                // sentencias de Sala, REX — es FLUJO DEL INCIDENTE (v13,
-                // caso SOSA): se descarta y la resolución de Sala queda como
-                // hito resolucion_incidente.
-                const TRONCO = ["demanda", "traba_litis", "prueba", "alegatos", "puro_derecho", "autos_sentencia", "sentencia_primera", "segunda_instancia", "sentencia_camara", "recurso_extraordinario", "sentencia_firme", "ejecucion", "fin_litigio", "archivo"];
-                const esMeritoFamiliar = familia !== "ordinario" && !TRONCO.includes(ev.etapa);
-                const esLitigioReal = (ev.rank || 0) <= 40 &&
-                    !(ev.etapa === "traba_litis" && /MEDIDAS PARA MEJOR PROVEER/.test(norm(ev.detalle || "")));
-                if (!esLitigioReal && !esMeritoFamiliar) {
-                    if ((ev.rank || 0) >= 60) {
-                        const kh = `resincid:${dayKey(ev.fecha)}`;
-                        if (!st.hitosVistos.has(kh)) {
-                            st.hitosVistos.add(kh);
-                            st.hitos.push({ tipo: "resolucion_incidente", fecha: ev.fecha, detalle: norm(ev.detalle || "").slice(0, 60), fuente: "estado" });
-                        }
-                    }
-                    st.retrocesosDescartados++;
-                    continue;
-                }
-            }
-            if (((st.cur.etapa === "fin_litigio") || (st.cur.etapa === "archivo" && (st.tuvoMerito || st.tuvoFin))) && ev.etapa === "ejecucion" && !(st.resultado && /INHABILIDAD|INCOMPETENCIA/.test(st.resultado.detalle || ""))) {
+            const resInterloc = st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA/.test(st.resultado.detalle || "");
+            if (((st.cur.etapa === "fin_litigio") || (st.cur.etapa === "archivo" && (st.tuvoMerito || st.tuvoFin))) && ev.etapa === "ejecucion" && !resInterloc) {
                 // Ejecución del acuerdo conciliatorio/homologado, o la MISMA
                 // ejecución que continúa tras un archivo intermedio (patrón
                 // DELELISI v14 — desarchivos para seguir ejecutando):
@@ -621,7 +603,32 @@ function runEngine(eventos, familia, fu, seed) {
                 st.terminal = false;
                 continue;
             }
-            // Estado explícito de etapa: reapertura real → abre segmento ⟲.
+            // Causa terminada (fin_litigio o archivo, cualquier subtipo — v15,
+            // caso RUIZ 13477/2021): tras el fin/acuerdo, el llamamiento, las
+            // resoluciones de Sala (apelaciones de honorarios o liquidaciones,
+            // pueden ser varias) y el REX son FLUJO DE INCIDENTE bajo la
+            // terminación/ejecución — no reabren. Solo la reanudación de
+            // LITIGIO REAL (demanda/traba-contestación/prueba/alegatos) o un
+            // hito de mérito de familia no-ordinaria reabre (revocación si el
+            // fin fue interlocutorio; retroceso visible en el resto).
+            {
+                const TRONCO = ["demanda", "traba_litis", "prueba", "alegatos", "puro_derecho", "autos_sentencia", "sentencia_primera", "segunda_instancia", "sentencia_camara", "recurso_extraordinario", "sentencia_firme", "ejecucion", "fin_litigio", "archivo"];
+                const esMeritoFamiliar = familia !== "ordinario" && !TRONCO.includes(ev.etapa);
+                const esLitigioReal = (ev.rank || 0) <= 40 &&
+                    !(ev.etapa === "traba_litis" && /MEDIDAS PARA MEJOR PROVEER/.test(norm(ev.detalle || "")));
+                if (!esLitigioReal && !esMeritoFamiliar) {
+                    if ((ev.rank || 0) >= 60 && ev.etapa !== "ejecucion") {
+                        const kh = `resincid:${dayKey(ev.fecha)}`;
+                        if (!st.hitosVistos.has(kh)) {
+                            st.hitosVistos.add(kh);
+                            st.hitos.push({ tipo: "resolucion_incidente", fecha: ev.fecha, detalle: norm(ev.detalle || "").slice(0, 60), fuente: "estado" });
+                        }
+                    }
+                    st.retrocesosDescartados++;
+                    continue;
+                }
+            }
+            // Estado explícito de litigio real: reapertura → abre segmento.
         }
         if (st.cur) {
             st.cur.hasta = ev.fecha;
