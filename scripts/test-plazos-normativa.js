@@ -57,6 +57,41 @@ ok("texto sin acto reconocible → null", () => {
     assert.strictEqual(r, null);
 });
 
+ok("mención incidental de traslado NO matchea (endurecido)", () => {
+    const r = clasificarActo(reglas, { texto: "a cuyo traslado conferido de fs. 145 adhirió la parte demandada", fuero: "CIV" });
+    assert.strictEqual(r, null);
+});
+
+ok("acto de conferir traslado SÍ matchea: 'córrase traslado a la actora'", () => {
+    const r = clasificarActo(reglas, { texto: "Córrase traslado a la parte actora del informe pericial.", fuero: "CIV" });
+    assert.strictEqual(r.clave, "traslado_generico");
+    assert.strictEqual(r.plazoDias, 5);
+});
+
+ok("vista laboral → 3 días art. 54 LO (validado contra t.o.)", () => {
+    const r = clasificarActo(reglas, { texto: "Dese vista a la parte actora de la liquidación practicada.", fuero: "CNT" });
+    assert.strictEqual(r.clave, "traslado_vista_cnt");
+    assert.strictEqual(r.plazoDias, 3);
+});
+
+ok("catch-all NOTIFIQUESE: resolución sin acto reconocible → 5 días", () => {
+    const r = clasificarActo(reglas, { texto: "Téngase presente lo manifestado. Regístrese y NOTIFÍQUESE.", fuero: "CIV" });
+    assert.strictEqual(r.clave, "resolucion_notificada");
+    assert.strictEqual(r.plazoDias, 5);
+});
+
+ok("catch-all NOTIFIQUESE laboral → 3 días art. 54", () => {
+    const r = clasificarActo(reglas, { texto: "Téngase presente. Notifíquese.", fuero: "CNT" });
+    assert.strictEqual(r.clave, "resolucion_notificada_cnt");
+    assert.strictEqual(r.plazoDias, 3);
+});
+
+ok("sentencia definitiva CNT le gana al catch-all aunque diga notifíquese", () => {
+    const r = clasificarActo(reglas, { texto: "Se dicta SENTENCIA DEFINITIVA. Regístrese y notifíquese.", fuero: "CNT" });
+    assert.strictEqual(r.clave, "apelacion_sentencia_definitiva_cnt");
+    assert.strictEqual(r.plazoDias, 6);
+});
+
 ok("regla con regex inválida no rompe", () => {
     const rotas = [{ _id: "rota", fuero: ["*"], matchers: ["([inval"], plazoDias: 5, norma: "x", prioridad: 1 }, ...reglas];
     const r = clasificarActo(rotas, { texto: "sentencia definitiva", fuero: "CIV" });
