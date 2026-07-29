@@ -31,6 +31,10 @@ const schema = new mongoose.Schema(
         objeto: { type: String, default: null },
         number: { type: Number },
         year: { type: Number },
+        // Organismo (denormalizado de la causa) — los plazos y prácticas
+        // pueden variar por instancia/juzgado/sala.
+        juzgado: { type: Number, default: null },
+        sala: { type: Number, default: null },
 
         sourceId: { type: String, required: true },
         movimiento: {
@@ -53,6 +57,11 @@ const schema = new mongoose.Schema(
         confianza: { type: String, enum: ["alta", "media", null], default: null },
         sinPlazo: { type: Boolean, default: false },
 
+        // Naturaleza del plazo: los de PAGO/cumplimiento son vencimientos
+        // reales pero NO alimentan reglas procesales (se excluyen de la
+        // minería). Heurística del extractor v3, corregible en revisión.
+        naturaleza: { type: String, enum: ["procesal", "pago", "cumplimiento", "otro", null], default: null, index: true },
+
         // Evidencia (para auditar el ejemplo y citarlo al crear la regla).
         snippet: { type: String, default: null },
         apercibimiento: { type: String, default: null },
@@ -60,6 +69,9 @@ const schema = new mongoose.Schema(
         // (código procesal, ley especial, acordada) — clave para detectar
         // normas que exceden los códigos procesales.
         normaCitada: { type: String, default: null, index: true },
+        // Contexto amplio de la cédula (primeros ~3000 chars) — necesario
+        // para entrenar un clasificador de acto (el snippet solo no alcanza).
+        textoExtracto: { type: String, default: null },
 
         extractorVersion: { type: Number },
         source: { type: String, enum: ["inline", "backfill"], required: true },
@@ -68,7 +80,10 @@ const schema = new mongoose.Schema(
         // Revisión humana desde la admin (tab Dataset → Revisión). Los
         // 'descartado' (falsos positivos del extractor, menciones que no son
         // el plazo del acto) se EXCLUYEN de stats y candidatos — así los
-        // casos dispersos se depuran sin borrar la evidencia.
+        // casos dispersos se depuran sin borrar la evidencia. Si el admin
+        // corrige acto/naturaleza, `corregido: true` marca el label como ORO
+        // (etiqueta humana — la clase de ejemplo que entrena un clasificador;
+        // el acto automático de las reglas es una etiqueta débil/circular).
         revision: {
             estado: {
                 type: String,
@@ -76,6 +91,7 @@ const schema = new mongoose.Schema(
                 default: "sin_revisar",
                 index: true,
             },
+            corregido: { type: Boolean, default: false },
             notas: { type: String, default: "" },
             revisadoAt: { type: Date, default: null },
         },
