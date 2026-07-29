@@ -141,7 +141,19 @@
 //         traba: son medidas probatorias — caso 46523/2022).
 //     (e) HITO archivo: todos los archivos de la causa quedan registrados en
 //         hitos[] (caso 34249/2023 — archivo por inactividad y continuación).
-const VERSION = 16;
+// v17 (revisiones del usuario, punto 9): (a) RETRO-DEMOCIÓN de incidencias —
+//     etapas de revisión alcanzadas sin mérito ni fin se convierten a hitos
+//     resolucion_incidente cuando reanuda la primera instancia (caso
+//     56977/2017: la apelación de una incidencia inflaba el rank y la
+//     verdadera SENTENCIA DE PRIMERA INSTANCIA se descartaba; excluida CSS
+//     donde la revisión sin sentencia registrada es el flujo previsional);
+//     (b) en AMPAROS/SUMARÍSIMOS/CAUTELARES la interlocutoria ES la sentencia
+//     (contextual, caso 12721/2024); (c) HITO audiencia (art. 360 / art. 80),
+//     separa traba de prueba; (d) DECLARA DESIERTO = terminación anticipada
+//     (caso 35505/2022); (e) el acta de ratificación/homologación del acuerdo
+//     pone fin al litigio como señal (en concursal sigue siendo etapa);
+//     (f) engine sobre timeline completo (preload) para democión incremental.
+const VERSION = 17;
 
 // ---------------------------------------------------------------------------
 // Taxonomía canónica
@@ -388,6 +400,12 @@ function detectarSenalComun(detalle) {
     if (/^LIQUIDACION/.test(d)) return "ejecucion";
     // Partición de bienes (sucesorio, v16): señales del tribunal.
     if (/^PARTICION DE BIENES|^SE APRUEBA PARTICION|^ACUERDO PARTICIONARIO|^APROBACION (DEL )?ACUERDO DE PARTICION|^PROVIDENCIA .*PARTICION/.test(d)) return "particion";
+    // Audiencia art. 360 / art. 80 (v17): hito que separa traba de prueba.
+    if (/^AUDIENCIA ?(PRELIMINAR|360|ART\.? ?360|ART\.? ?80|DE CONCILIACION)/.test(d)) return "audiencia";
+    // Homologación del acuerdo (v17): acta que pone fin al litigio.
+    if (/^ACTA( DE)? RATIFICACION.*ACUERDO|ACUERDO Y HOMOLOGACION|^HOMOLOGA(CION)?( DEL?)? ?ACUERDO/.test(d)) return "homologacion";
+    // Deserción del recurso (v17): terminación anticipada.
+    if (/^DECLARA DESIERTO/.test(d)) return "inhabilidad";
     return null;
 }
 
@@ -437,20 +455,24 @@ function buildEventos(movimientos) {
 // TRAMITE" cargados juntos) y aplica progresividad: un rank menor en día
 // posterior abre segmento marcado retroceso: true (nunca se descarta).
 function runEngine(eventos, familia, fu, seed) {
+    // v17: el engine trabaja sobre el timeline COMPLETO (preload = segmentos
+    // previos en el update incremental) — necesario para la retro-democión de
+    // incidencias. st.nuevos ES el timeline resultante.
+    const preload = (seed.preload || []).map((s) => ({ ...s }));
     const st = {
-        cur: seed.cur || null, // segmento abierto {etapa, rank, desde, hasta}
+        nuevos: preload,
+        cur: preload.length ? preload[preload.length - 1] : null,
         terminal: !!seed.terminal,
         resultado: seed.resultado || null,
         retrocesosDescartados: 0,
         hitos: [],
         hitosVistos: new Set(seed.hitosVistos || []),
-        tuvoMerito: !!seed.tuvoMerito,
-        tuvoFin: !!seed.tuvoFin,
+        tuvoMerito: preload.some((s) => (s.rank || 0) >= 60 && (s.rank || 0) < 70),
+        tuvoFin: preload.some((s) => s.etapa === "fin_litigio"),
+        amparoLike: !!seed.amparoLike,
         paralizado: !!seed.paralizado,
         paralizadoDesde: seed.paralizadoDesde || null,
         suspensiones: [],   // suspensiones CERRADAS durante esta corrida
-        nuevos: [],         // segmentos creados en esta corrida
-        curCerrado: false,  // true si el segmento seed quedó cerrado
         eventos: 0,
         clasificados: 0,
         sinClasificar: new Map(),
@@ -460,16 +482,9 @@ function runEngine(eventos, familia, fu, seed) {
     const porDia = new Map();
     for (const ev of eventos) {
         st.eventos++;
-        // Inhabilidad de instancia (v10): terminación anticipada que trunca la
-        // demanda — cualquier fuente. Registra hito + evento terminal.
         const dNormEv = norm(ev.detalle);
-        if (ev.senal === "inhabilidad" || /INHABILIDAD DE (LA )?INSTANCIA|FALTA DE APTITUD JURISDICCIONAL|SENTENCIA INTERLOCUTORIA DEFINITIVA/.test(dNormEv)) {
-            st.clasificados++;
-            const keyIn = `inhabilidad:${dayKey(ev.fecha)}`;
-            if (!st.hitosVistos.has(keyIn)) {
-                st.hitosVistos.add(keyIn);
-                st.hitos.push({ tipo: "inhabilidad_instancia", fecha: ev.fecha, detalle: dNormEv.slice(0, 60), fuente: ev.senal ? "comun" : "estado" });
-            }
+        // Helper local: inyecta un evento terminal fin_litigio en el día.
+        const inyectarFin = () => {
             const k = dayKey(ev.fecha);
             const slot = porDia.get(k) || { fecha: ev.fecha, evs: new Map() };
             if (!slot.evs) slot.evs = new Map();
@@ -477,31 +492,66 @@ function runEngine(eventos, familia, fu, seed) {
                 slot.evs.set("fin_litigio", { fecha: ev.fecha, etapa: "fin_litigio", rank: ETAPAS.fin_litigio.rank, categoria: "terminal", detalle: ev.detalle, esSenal: false });
             }
             porDia.set(k, slot);
+        };
+        const pushHito = (tipo) => {
+            const kh = `${tipo}:${dayKey(ev.fecha)}`;
+            if (!st.hitosVistos.has(kh)) {
+                st.hitosVistos.add(kh);
+                st.hitos.push({ tipo, fecha: ev.fecha, detalle: dNormEv.slice(0, 60), fuente: ev.senal === "interlocutoria" || ev.senal === "audiencia" || ev.senal === "homologacion" || ev.senal === "inhabilidad" ? "comun" : ev.senal ? "publicacion" : "estado" });
+            }
+        };
+        // HITO audiencia (v17): art. 360 CPCCN (civil) / art. 80 LO (laboral) —
+        // el acto que separa la traba de litis de la etapa probatoria (concilia
+        // o abre a prueba). No altera el timeline por sí mismo.
+        if (/AUDIENCIA ?(PRELIMINAR|360|ART\.? ?360|ART\.? ?80|DE CONCILIACION)/.test(dNormEv)) {
+            pushHito("audiencia");
+            if (ev.senal === "audiencia") { st.clasificados++; continue; }
+        } else if (ev.senal === "audiencia") { st.clasificados++; continue; }
+        // Inhabilidad / interlocutoria definitiva / deserción (v10/v13/v17):
+        // terminación anticipada que trunca el proceso — cualquier fuente.
+        if (ev.senal === "inhabilidad" || /INHABILIDAD DE (LA )?INSTANCIA|FALTA DE APTITUD JURISDICCIONAL|SENTENCIA INTERLOCUTORIA DEFINITIVA|DECLARA DESIERTO/.test(dNormEv)) {
+            st.clasificados++;
+            pushHito(/DESIERTO/.test(dNormEv) ? "desercion" : "inhabilidad_instancia");
+            inyectarFin();
             continue;
         }
-        // HITO sentencia interlocutoria (v8): no cierra instancia ni mueve la
-        // etapa — se registra en hitos[] con su fuente, venga de un estado,
-        // una publicación o un movimiento común. Dedupe por día.
-        if (ev.senal === "interlocutoria" || /SENTENCIA INTERLOCUTORIA/.test(dNormEv)) {
+        // Homologación del acuerdo (v17, caso 35505/2022): el acta de
+        // ratificación/homologación pone fin al litigio aunque no haya estado
+        // RESOL. FIN. En concursal la homologación es etapa propia.
+        if (ev.senal === "homologacion") {
             st.clasificados++;
-            const key = `interlocutoria:${dayKey(ev.fecha)}`;
-            if (!st.hitosVistos.has(key)) {
-                st.hitosVistos.add(key);
-                st.hitos.push({
-                    tipo: "sentencia_interlocutoria",
-                    fecha: ev.fecha,
-                    detalle: dNormEv.slice(0, 60),
-                    fuente: ev.senal === "interlocutoria" ? "comun" : ev.senal ? "publicacion" : "estado",
-                });
+            if (familia === "concursal") {
+                const k = dayKey(ev.fecha);
+                const slot = porDia.get(k) || { fecha: ev.fecha, evs: new Map() };
+                if (!slot.evs) slot.evs = new Map();
+                if (!slot.evs.has("homologacion")) slot.evs.set("homologacion", { fecha: ev.fecha, etapa: "homologacion", rank: ETAPAS.homologacion.rank, categoria: "etapa", detalle: ev.detalle, esSenal: true });
+                porDia.set(k, slot);
+            } else {
+                pushHito("homologacion_acuerdo");
+                inyectarFin();
             }
             continue;
+        }
+        // Sentencia interlocutoria (v8): HITO con flujo propio. EXCEPCIÓN v17:
+        // en amparos/sumarísimos/cautelares la interlocutoria ES la sentencia
+        // (resolución de mérito) — se trata como señal de sentencia contextual.
+        let c = null;
+        if (ev.senal === "interlocutoria" || /SENTENCIA INTERLOCUTORIA/.test(dNormEv)) {
+            if (st.amparoLike) {
+                c = { categoria: "contextual", etapa: "publicacion_sentencia", rank: null };
+            } else {
+                st.clasificados++;
+                pushHito("sentencia_interlocutoria");
+                continue;
+            }
         }
         // Señales secundarias: PUBLICACION SENTENCIA y "sentencia" genérica de
         // movimientos comunes son contextuales (la instancia se resuelve en el
         // fold); las específicas (1ra instancia / cámara / remate / autos) son
         // eventos de etapa directos.
-        let c;
-        if (ev.senal === "publicacion-sentencia" || ev.senal === "sentencia") {
+        if (c) {
+            // ya resuelta arriba (interlocutoria de amparo)
+        } else if (ev.senal === "publicacion-sentencia" || ev.senal === "sentencia") {
             c = { categoria: "contextual", etapa: "publicacion_sentencia", rank: null };
         } else if (ev.senal && SENAL_DIRECTA[ev.senal]) {
             if (ev.senal === "particion" && familia !== "sucesorio") {
@@ -602,6 +652,29 @@ function runEngine(eventos, familia, fu, seed) {
                 ev.categoria = "etapa";
             }
         }
+        // RETRO-DEMOCIÓN de incidencias (v17, caso 56977/2017): una apelación
+        // de incidencia durante el trámite crea etapas de revisión (70-89)
+        // ANTES de toda sentencia; si después REANUDA la primera instancia
+        // (prueba, autos, la propia sentencia), aquellas etapas eran el
+        // incidente — se convierten a hitos resolucion_incidente y el flujo
+        // principal continúa desde donde estaba. Excluida CSS (allí la
+        // revisión sin sentencia registrada es el flujo real previsional).
+        if (fu !== "CSS" && ev.categoria === "etapa" && (ev.rank || 0) <= 60 &&
+            st.cur && (st.cur.rank || 0) >= 70 && (st.cur.rank || 0) <= 89 &&
+            !st.tuvoMerito && !st.tuvoFin &&
+            !/MEDIDAS PARA MEJOR PROVEER/.test(norm(ev.detalle || ""))) {
+            while (st.nuevos.length && (st.nuevos[st.nuevos.length - 1].rank || 0) >= 70 && (st.nuevos[st.nuevos.length - 1].rank || 0) <= 89) {
+                const seg = st.nuevos.pop();
+                const kh = `resolucion_incidente:${dayKey(new Date(seg.desde))}`;
+                if (!st.hitosVistos.has(kh)) {
+                    st.hitosVistos.add(kh);
+                    st.hitos.push({ tipo: "resolucion_incidente", fecha: new Date(seg.desde), detalle: ETAPAS[seg.etapa] ? ETAPAS[seg.etapa].label.toUpperCase() : seg.etapa, fuente: "estado" });
+                }
+                st.retrocesosDescartados++;
+            }
+            st.cur = st.nuevos.length ? st.nuevos[st.nuevos.length - 1] : null;
+            if (st.cur) st.cur.hasta = null; // el segmento previo vuelve a estar vigente
+        }
         if (st.cur && ev.etapa === st.cur.etapa) continue; // repetición de la misma etapa
         if (ev.etapa === "ejecucion" && (!st.cur || (st.cur.rank || 0) < 60)) {
             // No puede haber ejecución sin sentencia (o fin del litigio)
@@ -633,14 +706,13 @@ function runEngine(eventos, familia, fu, seed) {
                 st.terminal = true;
                 continue;
             }
-            const resInterloc = st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA/.test(st.resultado.detalle || "");
+            const resInterloc = st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA|DESIERTO/.test(st.resultado.detalle || "");
             if (((st.cur.etapa === "fin_litigio") || (st.cur.etapa === "archivo" && (st.tuvoMerito || st.tuvoFin))) && ev.etapa === "ejecucion" && !resInterloc) {
                 // Ejecución del acuerdo conciliatorio/homologado, o la MISMA
                 // ejecución que continúa tras un archivo intermedio (patrón
                 // DELELISI v14 — desarchivos para seguir ejecutando):
                 // continuación NORMAL del proceso, no reapertura.
                 st.cur.hasta = ev.fecha;
-                if (st.nuevos.indexOf(st.cur) === -1) st.curCerrado = true;
                 const segEj = { etapa: ev.etapa, rank: ev.rank, desde: ev.fecha, hasta: null };
                 st.nuevos.push(segEj);
                 st.cur = segEj;
@@ -662,7 +734,7 @@ function runEngine(eventos, familia, fu, seed) {
                     !/MEDIDAS PARA MEJOR PROVEER/.test(norm(ev.detalle || ""));
                 if (!esLitigioReal && !esMeritoFamiliar) {
                     if ((ev.rank || 0) >= 60 && ev.etapa !== "ejecucion") {
-                        const kh = `resincid:${dayKey(ev.fecha)}`;
+                        const kh = `resolucion_incidente:${dayKey(ev.fecha)}`;
                         if (!st.hitosVistos.has(kh)) {
                             st.hitosVistos.add(kh);
                             st.hitos.push({ tipo: "resolucion_incidente", fecha: ev.fecha, detalle: norm(ev.detalle || "").slice(0, 60), fuente: "estado" });
@@ -674,14 +746,11 @@ function runEngine(eventos, familia, fu, seed) {
             }
             // Estado explícito de litigio real: reapertura → abre segmento.
         }
-        if (st.cur) {
-            st.cur.hasta = ev.fecha;
-            if (st.nuevos.indexOf(st.cur) === -1) st.curCerrado = true;
-        }
+        if (st.cur) st.cur.hasta = ev.fecha;
         const seg = { etapa: ev.etapa, rank: ev.rank, desde: ev.fecha, hasta: null };
         // Solo llega acá un rank menor si la causa estaba terminada.
         if (st.cur && (ev.rank || 0) < (st.cur.rank || 0)) {
-            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA/.test(st.resultado.detalle || "")) {
+            if (st.resultado && /INHABILIDAD|INTERLOCUTORIA|INCOMPETENCIA|DESIERTO/.test(st.resultado.detalle || "")) {
                 // REVOCACIÓN (v12): la Cámara rechazó la interlocutoria — la
                 // demanda continúa a la siguiente etapa. No es anomalía; el
                 // resultado revocado se limpia.
@@ -760,7 +829,7 @@ function deriveEtapaProcesal(movimientos, fuero, objeto) {
     const familia = detectFamilia(fuero, objeto);
     const fu = fuero ? norm(fuero) : null;
     const { eventos, asOf } = buildEventos(movimientos);
-    const st = runEngine(eventos, familia, fu, {});
+    const st = runEngine(eventos, familia, fu, { amparoLike: /AMPARO|SUMARISIMO|HABEAS|CAUTELAR/.test(norm(objeto || "")) });
     const suspensiones = st.suspensiones.slice();
     if (st.paralizado) suspensiones.push({ desde: st.paralizadoDesde, hasta: null });
     return assemble(familia, st.nuevos, st, suspensiones, asOf, {
@@ -825,7 +894,6 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
         ...(s.retroceso ? { retroceso: true } : {}),
         ...(s.revocacion ? { revocacion: true } : {}),
     }));
-    const lastSeg = prevTimeline[prevTimeline.length - 1] || null;
     const prevSusp = (prev.suspensiones || []).map((s) => ({
         desde: s.desde ? new Date(s.desde) : null,
         hasta: s.hasta ? new Date(s.hasta) : null,
@@ -834,19 +902,17 @@ function updateEtapaProcesal(prev, movimientos, fuero, objeto) {
 
     const prevHitos = (prev.hitos || []).map((h) => ({ tipo: h.tipo, fecha: new Date(h.fecha), detalle: h.detalle, fuente: h.fuente }));
     const st = runEngine(nuevos, familia, fu, {
-        cur: lastSeg,
+        preload: prevTimeline,
+        amparoLike: /AMPARO|SUMARISIMO|HABEAS|CAUTELAR/.test(norm(objeto || "")),
         terminal: prev.terminal,
         resultado: prev.resultado ? { etapa: prev.resultado.etapa, detalle: prev.resultado.detalle } : null,
         paralizado: !!abierta,
         paralizadoDesde: abierta ? abierta.desde : null,
-        hitosVistos: prevHitos.map((h) => `${h.tipo === "sentencia_interlocutoria" ? "interlocutoria" : h.tipo === "inhabilidad_instancia" ? "inhabilidad" : "resincid"}:${dayKey(h.fecha)}`),
-        tuvoMerito: prevTimeline.some((s) => (s.rank || 0) >= 60 && (s.rank || 0) < 70),
-        tuvoFin: prevTimeline.some((s) => s.etapa === "fin_litigio"),
+        hitosVistos: prevHitos.map((h) => `${h.tipo}:${dayKey(h.fecha)}`),
     });
 
-    // Ensamblar: timeline previo (el último segmento pudo cerrarse en el fold)
-    // + segmentos nuevos; suspensiones cerradas previas + resultado del fold.
-    const timeline = prevTimeline.concat(st.nuevos);
+    // Ensamblar: el engine trabajó sobre el timeline completo (preload).
+    const timeline = st.nuevos;
     const suspensiones = prevSusp.filter((s) => s.hasta).concat(st.suspensiones);
     if (st.paralizado) suspensiones.push({ desde: st.paralizadoDesde, hasta: null });
 
