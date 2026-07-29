@@ -76,6 +76,13 @@ const schema = new mongoose.Schema(
                 "failed",
                 "not_pdf",
                 "computed", // vencimiento calculado (capa 4)
+                // Casos que requieren criterio humano (NO computables
+                // automáticamente): cédula física digitalizada (fecha real
+                // manuscrita al dorso — RETORNO CEDULA / PDF escaneado) o
+                // plazo diferido (la carga de notificar es de la parte: el
+                // plazo corre desde una notificación futura por cédula/oficio
+                // que confecciona el notificado, no desde esta cédula).
+                "revision_manual",
             ],
             default: "pending",
             index: true,
@@ -97,6 +104,15 @@ const schema = new mongoose.Schema(
         // Resultado del cómputo (capa 4): plazo aplicado, fuente (texto|norma),
         // vencimiento, diasComputados, version de dias-habiles.
         plazo: { type: mongoose.Schema.Types.Mixed, default: null },
+
+        // Validación/populado a carpetas de usuarios (plazos-folders-worker):
+        // marca que el vencimiento fue validado y sincronizado a las carpetas
+        // de las cuentas habilitadas (fase de prueba: cuentas test).
+        validacion: {
+            estado: { type: String, enum: [null, "validada", "sin_carpeta"], default: null, index: true },
+            syncedAt: { type: Date, default: null },
+            folders: { type: [{ folderId: mongoose.Schema.Types.ObjectId, userId: mongoose.Schema.Types.ObjectId }], default: undefined },
+        },
 
         // ── Trazabilidad ──────────────────────────────────────────────────────
         detectedAt: { type: Date, default: Date.now },

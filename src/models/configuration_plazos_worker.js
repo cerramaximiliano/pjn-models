@@ -21,8 +21,12 @@ const schema = new mongoose.Schema(
         lockTimeoutMinutes: { type: Number, default: 10, min: 1, max: 120 },
         maxRetries: { type: Number, default: 3, min: 1, max: 10 },
         downloadTimeoutMs: { type: Number, default: 60000, min: 5000, max: 300000 },
-        // Umbral chars/página para marcar PDF escaneado (ocr_needed).
+        // Umbral chars/página para marcar PDF escaneado (→ revision_manual:
+        // cédula física digitalizada, no computable automáticamente).
         scanCharsPerPageThreshold: { type: Number, default: 150, min: 10, max: 2000 },
+        // Espejar los docs procesados a Atlas (colección plazos-notificaciones)
+        // para que el plazos-folders-worker pueda leer de Atlas según su config.
+        mirrorToAtlas: { type: Boolean, default: true },
 
         // ── Estado (escrito por el worker) ───────────────────────────────────
         heartbeat: {
@@ -41,6 +45,7 @@ const schema = new mongoose.Schema(
             parsed: { type: Number, default: 0 },
             extracted: { type: Number, default: 0 },
             ocrNeeded: { type: Number, default: 0 },
+            revisionManual: { type: Number, default: 0 },
             notPdf: { type: Number, default: 0 },
             failed: { type: Number, default: 0 },
         },
