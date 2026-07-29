@@ -27,6 +27,10 @@ const schema = new mongoose.Schema(
         // Espejar los docs procesados a Atlas (colección plazos-notificaciones)
         // para que el plazos-folders-worker pueda leer de Atlas según su config.
         mirrorToAtlas: { type: Boolean, default: true },
+        // Lote por ciclo de cron: con los 4 fueros activos la cola crece
+        // mucho más rápido que 1 doc/min (diseño inicial).
+        batchPorCiclo: { type: Number, default: 20, min: 1, max: 200 },
+        delayEntreDocsMs: { type: Number, default: 2000, min: 200, max: 30000 },
 
         // ── Estado (escrito por el worker) ───────────────────────────────────
         heartbeat: {
