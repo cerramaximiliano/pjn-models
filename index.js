@@ -55,6 +55,7 @@ module.exports = {
     // Movimiento como entidad de primera clase (Fase 2 — promueve los
     // subdocs movimiento[] de Causas a colección propia con _id estable).
     PjnMovement: require("./src/models/pjn-movement"),
+    PjnMovementText: require("./src/models/pjn-movement-text"),
 
     // Helper compartido para generar el _id determinístico de PjnMovement.
     // Reutilizable por scrapers, RAG workers, bridge cache→Atlas, etc.

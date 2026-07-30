@@ -60,6 +60,15 @@ const PDF_STATUSES = [
     "expired",         // link de PJN expiró antes de poder bajarlo
 ];
 
+const TEXTO_STATUSES = [
+    "pending",         // documento de organismo, texto aún no extraído
+    "extracted",       // texto plano extraído (pdf-parse o copiado de sentencias-capturadas)
+    "needs_ocr",       // PDF escaneado — en cola de OCR
+    "ocr_done",        // texto extraído vía OCR
+    "failed",          // error de extracción (ver textoError)
+    "not_applicable",  // sin URL o escrito de parte (no se extrae texto)
+];
+
 const schema = new mongoose.Schema(
     {
         // _id determinístico: "{causaId}:{sourceId}"
@@ -103,6 +112,19 @@ const schema = new mongoose.Schema(
         pdfDownloadedAt: { type: Date },
         pdfDownloadAttempts: { type: Number, default: 0 },
         pdfError: { type: String },
+
+        // === Texto extraído (Fase texto — corpus de resoluciones) ===
+        // El TEXTO va en la colección satélite `pjn-movement-texts` (mismo _id,
+        // modelo PjnMovementText) para no engordar el working set de esta
+        // colección operativa. Acá solo estado liviano + tracking.
+        textoStatus: { type: String, enum: TEXTO_STATUSES, index: true },
+        textoCharCount: { type: Number },
+        textoMethod: { type: String },      // 'pdf-parse' | 'ocr' | 'sentencias-capturadas' | 'cache'
+        textoExtractedAt: { type: Date },
+        textoError: { type: String },
+        // Link de tracking al doc de sentencias-capturadas cuando este movimiento
+        // corresponde a una sentencia ya capturada por ese pipeline (join por url).
+        sentenciaCapturadaId: { type: mongoose.Schema.Types.ObjectId },
 
         // === Procedencia y ciclo de vida ===
         // true si el movimiento viene de la tabla VER HISTÓRICAS del PJN.
