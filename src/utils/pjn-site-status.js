@@ -39,8 +39,34 @@
  * transición, sin importar qué service (workers o mis-causas) la detecte primero.
  */
 
-const DEFAULT_STALE_MS = 5 * 60 * 1000; // 5 min — ventana de re-probe
+const DEFAULT_STALE_MS = 5 * 60 * 1000; // 5 min — ventana de re-probe inicial
 const CACHE_TTL_MS = 10 * 1000; // 10 s — cache local de lectura
+
+// Backoff de la ventana de re-probe. Un mantenimiento del PJN dura horas, no
+// minutos: sondear cada 5 min durante toda la ventana es levantar un browser y
+// hacer login contra un portal caído decenas de veces sin ganar nada. La
+// ventana crece con la duración del mantenimiento y se corta en 30 min, que
+// sigue siendo suficiente para notar la vuelta a tiempo.
+const BACKOFF_MAX_MS = 30 * 60 * 1000;
+const BACKOFF_STEPS = [
+  { afterMs: 0, staleMs: 5 * 60 * 1000 },          // primeros 15 min → cada 5
+  { afterMs: 15 * 60 * 1000, staleMs: 10 * 60 * 1000 },  // 15-60 min → cada 10
+  { afterMs: 60 * 60 * 1000, staleMs: BACKOFF_MAX_MS },  // más de 1 h → cada 30
+];
+
+/**
+ * Ventana de re-probe según cuánto lleva el mantenimiento. Se calcula desde
+ * `maintenanceSince` (cuándo empezó), no desde `lastDetectedAt` (el último
+ * intento), para que el backoff no se reinicie con cada sonda.
+ */
+function _staleMsFor(status) {
+  const desde = status?.maintenanceSince ? new Date(status.maintenanceSince).getTime() : null;
+  if (!desde) return DEFAULT_STALE_MS;
+  const duracion = Date.now() - desde;
+  let elegido = DEFAULT_STALE_MS;
+  for (const step of BACKOFF_STEPS) if (duracion >= step.afterMs) elegido = step.staleMs;
+  return elegido;
+}
 
 // Configuración inyectada por cada servicio. Defaults seguros: sin
 // getManagerConfig no persiste (fail-open); sin sendEmail no notifica.
@@ -154,12 +180,15 @@ async function detectMaintenancePage(page) {
  *                               reintento real. Default 5 min.
  * @returns {Promise<boolean>} true → saltear; false → procesar normalmente.
  */
-async function shouldSkipScraping({ staleMs = DEFAULT_STALE_MS } = {}) {
+async function shouldSkipScraping({ staleMs = null } = {}) {
   const status = await _readStatusCached();
   if (!status || status.status !== "maintenance") return false;
   if (!status.lastDetectedAt) return false;
+  // Sin staleMs explícito, la ventana sale del backoff: cuanto más dura el
+  // mantenimiento, menos seguido se vuelve a probar.
+  const ventana = staleMs != null ? staleMs : _staleMsFor(status);
   const ageMs = Date.now() - new Date(status.lastDetectedAt).getTime();
-  return ageMs < staleMs;
+  return ageMs < ventana;
 }
 
 /**
@@ -377,4 +406,5 @@ module.exports = {
   reportHealthy,
   getStatus,
   DEFAULT_STALE_MS,
+  BACKOFF_STEPS,
 };
