@@ -66,6 +66,11 @@ module.exports = {
     // por los 3 repos que scrapean el portal.
     htmlDriftGuard: require("./src/utils/html-drift-guard"),
 
+    // Auditoría del flag `update`: toda transición queda en updateHistory con
+    // valor anterior/nuevo, motivo y actor. Lo usan el hub, verify-worker,
+    // update-movimientos-worker y la conciliación SAIJ.
+    updateFlagAudit: require("./src/utils/update-flag-audit"),
+
     // Facade compartido del estado del portal PJN (detección de mantenimiento,
     // pausa de scraping, email + alerta + broadcast en la transición). Único
     // hogar de la lógica que antes estaba duplicada en pjn-workers y

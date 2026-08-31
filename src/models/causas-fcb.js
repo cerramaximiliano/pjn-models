@@ -104,12 +104,12 @@ const CausasFCBSchema = new Schema({
     timestamp: { type: Date, required: true },
     source: {
       type: String,
-      enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual', 'admin_manual', 'error_verification_worker', 'recovery_worker', 'stuck_documents_worker', 'verify_worker_recovery', 'cache', 'pjn_privacy_checker'],
+      enum: ['scraping', 'scraping-capsolver', 'app', 'api', 'manual', 'admin_manual', 'error_verification_worker', 'recovery_worker', 'stuck_documents_worker', 'verify_worker_recovery', 'cache', 'pjn_privacy_checker', 'saij', 'update_movimientos_worker', 'conciliacion_saij'],
       required: true
     },
     movimientosAdded: { type: Number, default: 0 },
     movimientosTotal: { type: Number, default: 0 },
-    updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery', 'stuck_fix', 'reset_for_reverification', 'link', 'unlink', 'privacy_change', 'privacy_reset'], required: true },
+    updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery', 'stuck_fix', 'reset_for_reverification', 'link', 'unlink', 'privacy_change', 'privacy_reset', 'update_flag', 'saij_link', 'saij_unlink'], required: true },
     success: { type: Boolean, default: true },
     movimientosDetails: [{
       fecha: Date,
@@ -136,7 +136,19 @@ const CausasFCBSchema = new Schema({
       folderId: String,
       accessFailureCount: Number,
       threshold: Number,
-      workerId: String
+      workerId: String,
+        // Trazabilidad del flag `update`: toda transición registra quién la
+        // hizo y por qué. Sin esto no se puede saber por qué una causa entró
+        // (o dejó de entrar) al circuito de actualización.
+        previousUpdate: Boolean,
+        newUpdate: Boolean,
+        reason: String,
+        // Identidad del que produjo el cambio: nombre de worker/servicio, o
+        // "<email> (admin)" cuando lo hizo una persona desde la UI.
+        actor: String,
+        // Vínculo SAIJ involucrado, cuando el cambio viene de un apareo o de
+        // su conciliación manual.
+        saijDocId: String
     }
   }],
 
