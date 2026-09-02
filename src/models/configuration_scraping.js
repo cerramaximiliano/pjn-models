@@ -5,7 +5,20 @@ const schema = new mongoose.Schema(
     fuero: {
       type: String,
       required: true,
-      enum: ['CIV', 'CSS', 'CNT', 'COM', 'CCF', 'CAF']
+      // Las 28 jurisdicciones del portal PJN. El enum tenía solo los 6 fueros
+      // con scraping activo, así que crear un worker para cualquier otro fallaba
+      // con "Error de validación" aunque el fuero estuviera cableado en
+      // FUERO_CONFIG del scraper. Se abre al conjunto completo: qué se mina de
+      // verdad lo decide qué configs existen, no este enum.
+      enum: [
+        // Cámaras nacionales y federales de CABA
+        'CSJ', 'CIV', 'CAF', 'CCF', 'CNE', 'CSS', 'CPE', 'CNT', 'CFP', 'CCC', 'COM',
+        // Casación penal
+        'CPF', 'CPN',
+        // Justicia federal del interior
+        'FBB', 'FCR', 'FCB', 'FCT', 'FGR', 'FLP', 'FMP', 'FMZ',
+        'FPO', 'FPA', 'FRE', 'FSA', 'FRO', 'FSM', 'FTU'
+      ]
     },
     year: {
       type: Number,
