@@ -20,8 +20,13 @@ const CausasFLPSchema = new Schema({
       nombres: [{ type: String }]  // Array para búsqueda indistinta actor/demandado/causante
   },
 
-  number: { type: String, required: true, index: true },
-  year: { type: String, required: true, index: true },
+  // number/year son Number, no String: estos modelos nacieron en pjn-mis-causas
+  // —donde el número llega tecleado por el usuario— pero los workers de
+  // descubrimiento barren rangos numéricos, y con String los operadores $gte/$lte
+  // de los rangos comparan lexicográficamente ("100" < "99"). CCF y CAF ya se
+  // migraron por lo mismo cuando se habilitó su scraping (2026-07-24).
+  number: { type: Number, required: true, index: true },
+  year: { type: Number, required: true, index: true },
   incidente: { type: String, default: null },
   parentCausaId: { type: mongoose.Schema.Types.ObjectId, default: null },
   fuero: { type: String, default: 'FLP', index: true },
