@@ -1,6 +1,6 @@
 {
   "name": "pjn-models",
-  "version": "1.51.2",
+  "version": "1.52.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

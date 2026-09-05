@@ -154,12 +154,27 @@ const CausasCAFSchema = new Schema({
     }
   }],
 
-  errorType: {
-    type: String,
-    enum: ['captcha_failed', 'captcha_skipped', 'page_load_timeout', 'network_error', 'navigation_error', 'data_extraction_error'],
-    required: false
+  // Detalle del último error de scraping. Mismo subdocumento que en
+  // causas-civil/ss/trabajo/comercial: es lo que escribe scraping-unified y lo
+  // que consulta el retry worker ('error.type'). Los esquemas de fueros nuevos
+  // traían un `errorType` plano que nadie escribía, y mongoose descartaba el
+  // subdoc `error` por strict — el retry nunca veía sus documentos.
+  error: {
+    type: {
+      type: String,
+      enum: ['captcha_failed', 'captcha_skipped', 'captcha_skipped_error', 'page_load_timeout', 'network_error',
+        'navigation_error', 'data_extraction_error'],
+      required: false
+    },
+    message: String,
+    timestamp: Date,
+    provider: String,
+    cost: Number,
+    retryCount: Number,
+    lastRetry: Date,
+    lastMessage: String,
+    availableData: [Schema.Types.Mixed]
   },
-  errorDetails: { type: Schema.Types.Mixed },
 
   // Movimientos
   movimiento: { type: Array },

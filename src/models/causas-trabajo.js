@@ -331,6 +331,11 @@ const schema = new mongoose.Schema(
       },
       message: String,
       timestamp: Date,
+      provider: String,
+      cost: Number,
+      retryCount: Number,
+      lastRetry: Date,
+      lastMessage: String,
       availableData: [mongoose.Schema.Types.Mixed] // Array para guardar cualquier dato disponible
     },
     isError: { type: Boolean },
