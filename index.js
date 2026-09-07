@@ -45,6 +45,10 @@ module.exports = {
     WorkerDailyStats: require("./src/models/worker-daily-stats"),
     WorkerHourlyStats: require("./src/models/worker-hourly-stats"),
     WorkerDailySummary: require("./src/models/worker-daily-summary"),
+    // Tandas del worker app-update: una pasada por los elegibles de un fuero
+    // (inicio, fin, docs, seg/doc, load, aporte de cada proceso). La escriben
+    // los workers y la lee pjn-api para la vista de capacidad.
+    AppUpdateTanda: require("./src/models/app-update-tanda"),
     ManagerConfig: require("./src/models/manager-config"),
     PjnSiteIncident: require("./src/models/pjn-site-incident"),
     PjnScrapeIncident: require("./src/models/pjn-scrape-incident"),

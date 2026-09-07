@@ -178,7 +178,14 @@ workerHourlyStatsSchema.statics.incrementStats = async function(fuero, workerTyp
     }
   }
 
-  return this.findOneAndUpdate(
+  // `processingTime` no es un contador: se acumula en totalProcessingTime y
+  // el promedio se recalcula abajo (antes quedaba siempre en 0).
+  if (increments.processingTime) {
+    delete incObj['stats.processingTime'];
+    incObj['stats.totalProcessingTime'] = (incObj['stats.totalProcessingTime'] || 0) + increments.processingTime;
+  }
+
+  const actualizado = await this.findOneAndUpdate(
     { date, hour, fuero, workerType },
     {
       $inc: incObj,
@@ -187,6 +194,15 @@ workerHourlyStatsSchema.statics.incrementStats = async function(fuero, workerTyp
     },
     { upsert: true, new: true }
   );
+
+  if (increments.processingTime && actualizado?.stats?.processed > 0) {
+    const avg = Math.round(actualizado.stats.totalProcessingTime / actualizado.stats.processed);
+    if (avg !== actualizado.stats.avgProcessingTime) {
+      await this.updateOne({ _id: actualizado._id }, { $set: { 'stats.avgProcessingTime': avg } });
+      actualizado.stats.avgProcessingTime = avg;
+    }
+  }
+  return actualizado;
 };
 
 /**
