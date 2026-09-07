@@ -124,6 +124,18 @@ const schema = new mongoose.Schema(
         enabled: true
       }
     },
+    // Chromium que vive entre documentos en vez de uno por documento.
+    // Lanzar un browser abre ~15-30 conexiones nuevas; es esa tasa (no la
+    // concurrencia) lo que castiga al router y pierde el init.js del captcha.
+    browserPersistente: {
+      type: {
+        enabled: { type: Boolean, default: true },
+        maxUsos: { type: Number, default: 30, min: 1, max: 500 },   // docs por browser antes de reciclar
+        maxEdadMin: { type: Number, default: 45, min: 1, max: 720 } // vida máxima en minutos
+      },
+      required: false,
+      default: { enabled: true, maxUsos: 30, maxEdadMin: 45 }
+    },
     updateProgress: {
       type: {
         // Documentos elegibles al inicio del día/ciclo
