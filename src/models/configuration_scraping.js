@@ -556,6 +556,17 @@ const schema = new mongoose.Schema(
         totalCaptchaFailed: Number
       }
     }],
+    // Browser que vive entre búsquedas (pjn-workers-scraping
+    // utils/browser-persistente.js). El discovery lanzaba un Chromium por
+    // expediente —~1.400 lanzamientos/h en worker_01— y cada lanzamiento son
+    // ~15-20 conexiones TCP nuevas, que es lo que satura el router del box.
+    // enabled=false vuelve a un Chromium por expediente sin redeploy. Arranca
+    // en false para prender fuero por fuero (updateMany por `fuero`).
+    browserPersistente: {
+      enabled: { type: Boolean, default: false },
+      maxUsos: { type: Number, default: 30, min: 1, max: 500 },
+      maxEdadMin: { type: Number, default: 45, min: 1, max: 720 }
+    },
     // Flags para retry worker - prevenir avance de número
     skipNumberUpdate: {
       type: Boolean,
