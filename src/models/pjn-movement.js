@@ -102,6 +102,12 @@ const schema = new mongoose.Schema(
         detalle: { type: String },
         url: { type: String },     // URL original de PJN (puede expirar)
         link: { type: String },    // alias usado por algunos scrapers, conservar por compat
+        // Fojas del movimiento (columna "A FS." del portal): rango de hojas que
+        // ocupa. Una sola hoja → desde === hasta. Espejo de movimiento[].fojas.
+        fojas: {
+            desde: { type: Number },
+            hasta: { type: Number },
+        },
 
         // === PDF en S3 (Fase 1) ===
         pdfStatus: { type: String, enum: PDF_STATUSES, default: "pending", index: true },
