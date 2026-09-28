@@ -108,6 +108,12 @@ const schema = new mongoose.Schema(
             desde: { type: Number },
             hasta: { type: Number },
         },
+        // Posición del movimiento dentro de su día, en el orden del portal
+        // (0 = la fila que el portal muestra primero ese día). La UI y los
+        // correos ordenan por (fecha desc, posicionDia asc). Lo asignan los
+        // workers (conPosicionDia de reemplazo-dia.js) y el backfill
+        // scripts/fojas/poblar-posicion-dia.js de pjn-workers-scraping.
+        posicionDia: { type: Number },
 
         // === PDF en S3 (Fase 1) ===
         pdfStatus: { type: String, enum: PDF_STATUSES, default: "pending", index: true },
@@ -156,6 +162,8 @@ const schema = new mongoose.Schema(
 // Índices compuestos
 // Listado de movimientos de una causa, orden cronológico descendente.
 schema.index({ causaId: 1, fecha: -1 });
+// Orden del portal dentro del día (listado de la UI y del correo).
+schema.index({ causaId: 1, fecha: -1, posicionDia: 1 });
 // Hard guarantee de unicidad por causa+sourceId. El _id ya es único por
 // construcción ("causaId:sourceId"), pero este índice deja explícita la
 // invariante y permite queries por sourceId aislado.
