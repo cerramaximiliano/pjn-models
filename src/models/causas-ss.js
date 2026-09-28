@@ -550,5 +550,7 @@ schema.statics.safeSave = async function(docData) {
 // Tracking de visitas del sentencias-collector (ver shared/sentencias-scan-fields.js)
 schema.add(require("../shared/sentencias-scan-fields"));
 schema.add(require("../shared/etapa-procesal-fields"));
+// Vínculo principal → incidentes por _id (ver shared/incidentes-fields.js)
+schema.add(require("../shared/incidentes-fields"));
 
 module.exports = mongoose.models.CausasSegSocial || mongoose.model("CausasSegSocial", schema);
