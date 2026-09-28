@@ -250,6 +250,11 @@ const schema = new mongoose.Schema(
     // (login, sin captcha); sin credencial activa → pjn-workers (público, captcha).
     // Mantenido por el cron de reconciliación + set-on-link en causa-sync-service.
     hasActiveCredential: { type: Boolean, default: false, index: true },
+    // Huérfana de Mis Causas: credencial deshabilitada + carpeta viva. Lo mantiene el
+    // reconcile de pjn-mis-causas (vuelve a null al rehabilitarse la credencial o
+    // archivarse la carpeta); lo lee pjn-workers app-update para tomarla por el
+    // buscador público mientras nadie la actualice desde el listado autenticado.
+    orphanedAt: { type: Date, default: null },
     userUpdatesEnabled: [{
       userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       enabled: { type: Boolean, default: true }
