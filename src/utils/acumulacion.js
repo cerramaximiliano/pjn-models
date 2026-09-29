@@ -54,11 +54,27 @@ const EFECTIVA = [
   { re: /\bACUMULAD[OA]S? (A|AL|CON) (LA |EL )?(CAUSA|EXPTE|EXPEDIENTE|EXP|AUTOS|PRINCIPAL)\b/, tipos: null, clase: "despacho" },
   { re: /\bACUMULAR? (A |AL |CON )?(LA |EL )?(CAUSA|EXPTE|EXPEDIENTE|EXP|AUTOS|PRINCIPAL|INCIDENTE)\b/, tipos: null, clase: "despacho" },
   { re: /\bSE ACUMULA\b/, tipos: null, clase: "despacho" },
+  { re: /\bACUMULAD[OA]S? (A|AL) (N[°ºRO.]*\s*)?\d/, tipos: null, clase: "despacho" },
   { re: /\bACUMUL[EE]N?SE\b|\bACUMULENSE\b/, tipos: null, clase: "despacho" },
   { re: /\bDISPONE (LA )?ACUMULACION\b/, tipos: null, clase: "despacho" },
   { re: /\bHACE SABER (LA )?ACUMULACION\b/, tipos: null, clase: "despacho" },
   { re: /\bACUMULACION EFECTIVA\b/, tipos: null, clase: "despacho" },
 ];
+
+// ── Rol y otra causa ────────────────────────────────────────────────────────────────
+// Validado contra pares reales del rs0 (29-09): el ROL deducido del texto del despacho no es
+// confiable (18 bien / 6 mal / 14 indeterminados de 38: "SE ACUMULA EL EXPEDIENTE X AL Y",
+// "ACUMULA EXPTE X" se usan en las dos direcciones). Solo el EVENTO del sistema ("ACUMULA LA
+// CAUSA A OTRA" / "ACUMULACION JURIDICA A OTRA") afirma el rol: marca a la ACUMULADA y cierra su
+// historia. El NÚMERO de la otra causa sí es confiable (0 errores; en 8 pares cada una nombra a
+// la otra) y sirve para vincularlas sin afirmar quién absorbió a quién.
+const NUMERO = /(\d{1,6})\s*\/\s*(\d{4})\b/;
+
+/** Rol de ESTA causa (solo con el evento del sistema) y número de la otra (si el texto lo trae). */
+function rolYOtra(tipo, detalle, clase) {
+  const m = NUMERO.exec(normalizar(detalle));
+  return { rol: clase === "evento" ? "acumulada" : null, otra: m ? { number: Number(m[1]), year: Number(m[2]) } : null };
+}
 
 /**
  * @param {{tipo?:string, detalle?:string}} mov
@@ -88,9 +104,23 @@ function detectarAcumulacion(movs) {
     const c = clasificarMovimiento(m);
     if (!c) continue;
     const f = m.fecha ? new Date(m.fecha) : null;
-    out.push({ fecha: f && !Number.isNaN(f.getTime()) ? f : null, tipo: m.tipo || null, detalle: m.detalle || null, url: m.url || null, clase: c.clase });
+    const { rol, otra } = rolYOtra(m.tipo, m.detalle, c.clase);
+    out.push({ fecha: f && !Number.isNaN(f.getTime()) ? f : null, tipo: m.tipo || null, detalle: m.detalle || null, url: m.url || null, clase: c.clase, rol, otra });
   }
   return out.sort((a, b) => (b.fecha ? b.fecha.getTime() : 0) - (a.fecha ? a.fecha.getTime() : 0));
 }
 
-module.exports = { detectarAcumulacion, clasificarMovimiento };
+/**
+ * Resumen para la causa `propia` ({number, year}): rol (el de la decisión más reciente que lo
+ * tenga) y la otra causa (el número más reciente que no sea el propio, de cualquier fila
+ * efectiva: el evento del sistema no trae número y el despacho del mismo día sí).
+ */
+function resumirAcumulacion(eventos, propia = {}) {
+  if (!eventos || !eventos.length) return null;
+  const esPropia = (o) => o && Number(o.number) === Number(propia.number) && Number(o.year) === Number(propia.year);
+  const conRol = eventos.find((e) => e.rol);
+  const conOtra = eventos.find((e) => e.otra && !esPropia(e.otra));
+  return { decision: eventos[0], rol: conRol ? conRol.rol : null, otra: conOtra ? conOtra.otra : null };
+}
+
+module.exports = { detectarAcumulacion, clasificarMovimiento, rolYOtra, resumirAcumulacion };

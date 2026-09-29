@@ -65,3 +65,20 @@ assert.strictEqual(r[0].clase, "evento"); assert.strictEqual(r[0].url, "u1");
 assert.strictEqual(r[0].fecha.toISOString(), "2026-06-24T00:00:00.000Z");
 assert.deepStrictEqual(detectarAcumulacion([]), []); assert.deepStrictEqual(detectarAcumulacion(null), []);
 console.log(`test-acumulacion: OK (${si.length} efectivas, ${no.length} descartes)`);
+// rol/otra (29-09): rol solo con el evento; otra = número del despacho, sin la propia.
+{
+  const A = require("../src/utils/acumulacion");
+  assert.deepStrictEqual(A.rolYOtra("EVENTO", "ACUMULA LA CAUSA A OTRA", "evento"), { rol: "acumulada", otra: null });
+  assert.deepStrictEqual(A.rolYOtra("FIRMA DESPACHO", "ACUMULA CAUSA 3359/2023", "despacho"), { rol: null, otra: { number: 3359, year: 2023 } });
+  assert.deepStrictEqual(A.rolYOtra("FIRMA DESPACHO", "EXPEDIENTE ACUMULADO AL 9662/2018 - TRASLADO", "despacho"), { rol: null, otra: { number: 9662, year: 2018 } });
+  const evs = A.detectarAcumulacion([
+    { fecha: "2024-12-23", tipo: "EVENTO", detalle: "ACUMULA LA CAUSA A OTRA" },
+    { fecha: "2024-12-23", tipo: "FIRMA DESPACHO", detalle: "ACUMULA CAUSA A 6300/2019" },
+    { fecha: "2024-09-25", tipo: "FIRMA DESPACHO", detalle: "SE ACUMULA AL EXPTE 3359/2023" }, // se nombra a sí misma
+  ]);
+  const r = A.resumirAcumulacion(evs, { number: 3359, year: 2023 });
+  assert.strictEqual(r.rol, "acumulada");
+  assert.deepStrictEqual(r.otra, { number: 6300, year: 2019 });
+  assert.strictEqual(A.resumirAcumulacion([], {}), null);
+  console.log("test-acumulacion rol/otra: OK");
+}
