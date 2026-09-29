@@ -131,11 +131,15 @@ const schema = new mongoose.Schema(
     vinculados: {
       type: {
         capturarEnAppUpdate: { type: Boolean, default: false },
+        // Leer INCIDENTES seguidos entrando por su fila de Vinculados del principal: verify,
+        // stuck-documents y app-update los incluyen en sus pools (pjn-workers
+        // utils/incidente-vinculados.js). Basta con que un doc de la colección lo tenga.
+        leerIncidentes: { type: Boolean, default: false },
         refreshDays: { type: Number, default: 3, min: 0, max: 60 },   // no releer si capturedAt es más nuevo
         maxPaginas: { type: Number, default: 4, min: 1, max: 20 }      // 15 filas por página
       },
       required: false,
-      default: { capturarEnAppUpdate: false, refreshDays: 3, maxPaginas: 4 }
+      default: { capturarEnAppUpdate: false, leerIncidentes: false, refreshDays: 3, maxPaginas: 4 }
     },
     // Chromium que vive entre documentos en vez de uno por documento.
     // Lanzar un browser abre ~15-30 conexiones nuevas; es esa tasa (no la
