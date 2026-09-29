@@ -16,9 +16,15 @@
  *   MOVIMIENTO | ACUMULACION DE ACCIONES                      (CIV)
  *   FIRMA DESPACHO | ORDENA ACUMULAR…, ORDENA EFECTIVIZAR ACUMULACION…, RESUELVE/SE RESUELVE
  *                    ACUMULACIÓN, …ACUMULA AL EXPT…, SE AGREGA AL PRINCIPAL
- * NO cuentan (planteos, rechazos, avisos): SOLICITA/MANIFIESTA/CONTESTA/PLANTEO ACUMULACION,
- * RECHAZA ACUMULACION, DESACUMULACION, CONEXIDAD INFORMATIVA/DETECTADA, READJUDICACION POR NO
- * EXISTIR CONEXIDAD.
+ * NO cuentan (planteos, rechazos, avisos): SOLICITA/PIDE/MANIFIESTA/CONTESTA/PLANTEO ACUMULACION,
+ * RECHAZA/DESESTIMA ACUMULACION, DESACUMULACION, CONEXIDAD INFORMATIVA/DETECTADA, READJUDICACION
+ * POR NO EXISTIR CONEXIDAD, cualquier ESCRITO (las partes no deciden) y los sustantivos sueltos
+ * ("FIRMA DESPACHO | ACUMULACION", "ACUMULACION POR CONEXIDAD", "CONSTANCIA/REGISTRO DE
+ * ACUMULACION"): no dicen si se decidió.
+ *
+ * Relevamiento rs0 29-09 (scripts/acumulacion/explorar-acumulaciones.js de pjn-workers-scraping):
+ * "EVENTO | ACUMULA LA CAUSA A OTRA" está en 26.003 causas (casi todas CNT) y CIERRA la historia de
+ * la causa absorbida (mediana 1 movimiento posterior; 12.681 sin ninguno).
  */
 
 const normalizar = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
@@ -26,11 +32,15 @@ const normalizar = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "
 // Planteos/rechazos: la palabra tiene que referirse a la acumulación ("CONTESTA ACUMULACION",
 // "PEDIDO DE ACUMULACION"), no a otra cosa del mismo despacho ("POR CONTESTADOS LOS
 // AGRAVIOS. ACUMULA AL EXPT…" sí es decisión efectiva).
-const EXCLUIR = /\b(?:SOLICIT\w*|MANIFIEST\w*|CONTEST\w*|PLANTEO|PLANTEA|PEDIDO|RECHAZ\w*|REQUERIMIENTO)\s+(?:(?:SOBRE|DE|DEL|LA|EL|POR)\s+){0,2}(?:DES)?ACUMUL|DESACUMUL|NO EXISTIR|INFORMATIV|DETECTAD/;
+const EXCLUIR = /\b(?:SOLICIT\w*|MANIFIEST\w*|CONTEST\w*|PLANTEO|PLANTEA|PEDIDO|PIDE|RECHAZ\w*|DESESTIM\w*|REQUERIMIENTO|BUSQUEDA)\s+(?:(?:SOBRE|DE|DEL|LA|EL|POR|CAUSA|PARA)\s+){0,2}(?:DES)?ACUMUL|DESACUMUL|NO EXISTIR|INFORMATIV|DETECTAD|SE RESUELVA/;
+// Las partes no deciden: sus escritos nunca son la decisión de acumular.
+const TIPO_ESCRITO = /^ESCRITO\b/;
 
 const EFECTIVA = [
   // Evento del sistema de gestión (la señal más limpia).
   { re: /^ACUMULA LA CAUSA A OTRA\b/, tipos: /^EVENTO$/, clase: "evento" },
+  // Comercial: mismo evento con otra redacción (675 causas en el rs0, 29-09).
+  { re: /^ACUMULACION JURIDICA A OTRA\b/, tipos: /^EVENTO$/, clase: "evento" },
   { re: /\bACUMULACION DE ACCIONES\b/, tipos: /^(CAMBIO DE ESTADO DE EXPEDIENTE|MOVIMIENTO)$/, clase: "cambio_estado" },
   { re: /\bINTEGRACION DE LITIS - ACUMULADOR\b/, tipos: /^CAMBIO DE ESTADO DE EXPEDIENTE$/, clase: "cambio_estado" },
   // Despachos que la ordenan o la resuelven.
@@ -38,6 +48,16 @@ const EFECTIVA = [
   { re: /\b(SE )?RESUELVE (LA )?ACUMULACION\b/, tipos: null, clase: "despacho" },
   { re: /\bACUMULA AL (EXPT|EXPTE|EXPEDIENTE|PRINCIPAL)\b/, tipos: null, clase: "despacho" },
   { re: /\bSE AGREGA AL PRINCIPAL\b/, tipos: null, clase: "despacho" },
+  // Variantes relevadas en el rs0 (29-09): "ACUMULA A CAUSA #/#", "ACUMULADO A EXPTE.",
+  // "SE ACUMULA AL EXPEDIENTE", "ACUMULESE", "DISPONE ACUMULACION", "HACE SABER ACUMULACION DE LA
+  // PRESENTE CAUSA…", "ACUMULACION EFECTIVA", "ACUMULA CAUSA N° #/#".
+  { re: /\bACUMULAD[OA]S? (A|AL|CON) (LA |EL )?(CAUSA|EXPTE|EXPEDIENTE|EXP|AUTOS|PRINCIPAL)\b/, tipos: null, clase: "despacho" },
+  { re: /\bACUMULAR? (A |AL |CON )?(LA |EL )?(CAUSA|EXPTE|EXPEDIENTE|EXP|AUTOS|PRINCIPAL|INCIDENTE)\b/, tipos: null, clase: "despacho" },
+  { re: /\bSE ACUMULA\b/, tipos: null, clase: "despacho" },
+  { re: /\bACUMUL[EE]N?SE\b|\bACUMULENSE\b/, tipos: null, clase: "despacho" },
+  { re: /\bDISPONE (LA )?ACUMULACION\b/, tipos: null, clase: "despacho" },
+  { re: /\bHACE SABER (LA )?ACUMULACION\b/, tipos: null, clase: "despacho" },
+  { re: /\bACUMULACION EFECTIVA\b/, tipos: null, clase: "despacho" },
 ];
 
 /**
@@ -48,7 +68,7 @@ function clasificarMovimiento(mov) {
   if (!mov) return null;
   const tipo = normalizar(mov.tipo);
   const detalle = normalizar(mov.detalle);
-  if (!detalle || EXCLUIR.test(detalle)) return null;
+  if (!detalle || EXCLUIR.test(detalle) || TIPO_ESCRITO.test(tipo)) return null;
   for (const r of EFECTIVA) {
     if (r.tipos && !r.tipos.test(tipo)) continue;
     if (r.re.test(detalle)) return { clase: r.clase };
