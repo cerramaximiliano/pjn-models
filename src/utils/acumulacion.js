@@ -68,12 +68,16 @@ const EFECTIVA = [
 // CAUSA A OTRA" / "ACUMULACION JURIDICA A OTRA") afirma el rol: marca a la ACUMULADA y cierra su
 // historia. El NÚMERO de la otra causa sí es confiable (0 errores; en 8 pares cada una nombra a
 // la otra) y sirve para vincularlas sin afirmar quién absorbió a quién.
-const NUMERO = /(\d{1,6})\s*\/\s*(\d{4})\b/;
+const NUMEROS = /(\d{1,6})\s*\/\s*(\d{4})\b/g;
 
-/** Rol de ESTA causa (solo con el evento del sistema) y número de la otra (si el texto lo trae). */
+/**
+ * Rol de ESTA causa (solo con el evento del sistema) y números de expediente que trae el texto.
+ * `otra` = el primero; `otras` = todos ("SE ACUMULA EL EXPEDIENTE <propia> AL <otra>" nombra
+ * primero a la propia: resumirAcumulacion elige el primero que no sea el propio).
+ */
 function rolYOtra(tipo, detalle, clase) {
-  const m = NUMERO.exec(normalizar(detalle));
-  return { rol: clase === "evento" ? "acumulada" : null, otra: m ? { number: Number(m[1]), year: Number(m[2]) } : null };
+  const otras = [...normalizar(detalle).matchAll(NUMEROS)].map((m) => ({ number: Number(m[1]), year: Number(m[2]) }));
+  return { rol: clase === "evento" ? "acumulada" : null, otra: otras[0] || null, otras };
 }
 
 /**
@@ -104,8 +108,8 @@ function detectarAcumulacion(movs) {
     const c = clasificarMovimiento(m);
     if (!c) continue;
     const f = m.fecha ? new Date(m.fecha) : null;
-    const { rol, otra } = rolYOtra(m.tipo, m.detalle, c.clase);
-    out.push({ fecha: f && !Number.isNaN(f.getTime()) ? f : null, tipo: m.tipo || null, detalle: m.detalle || null, url: m.url || null, clase: c.clase, rol, otra });
+    const { rol, otra, otras } = rolYOtra(m.tipo, m.detalle, c.clase);
+    out.push({ fecha: f && !Number.isNaN(f.getTime()) ? f : null, tipo: m.tipo || null, detalle: m.detalle || null, url: m.url || null, clase: c.clase, rol, otra, otras });
   }
   return out.sort((a, b) => (b.fecha ? b.fecha.getTime() : 0) - (a.fecha ? a.fecha.getTime() : 0));
 }
@@ -119,8 +123,12 @@ function resumirAcumulacion(eventos, propia = {}) {
   if (!eventos || !eventos.length) return null;
   const esPropia = (o) => o && Number(o.number) === Number(propia.number) && Number(o.year) === Number(propia.year);
   const conRol = eventos.find((e) => e.rol);
-  const conOtra = eventos.find((e) => e.otra && !esPropia(e.otra));
-  return { decision: eventos[0], rol: conRol ? conRol.rol : null, otra: conOtra ? conOtra.otra : null };
+  let otra = null;
+  for (const e of eventos) {
+    const cand = (e.otras && e.otras.length ? e.otras : e.otra ? [e.otra] : []).find((o) => !esPropia(o));
+    if (cand) { otra = cand; break; }
+  }
+  return { decision: eventos[0], rol: conRol ? conRol.rol : null, otra };
 }
 
 module.exports = { detectarAcumulacion, clasificarMovimiento, rolYOtra, resumirAcumulacion };
