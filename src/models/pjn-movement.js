@@ -114,6 +114,10 @@ const schema = new mongoose.Schema(
         // workers (conPosicionDia de reemplazo-dia.js) y el backfill
         // scripts/fojas/poblar-posicion-dia.js de pjn-workers-scraping.
         posicionDia: { type: Number },
+        // Hitos procesales que marca este movimiento. Hoy: 'acumulacion' (el movimiento
+        // registra la decisión de acumular la causa a otra; utils/acumulacion.js). Lo escribe
+        // pjn-workers al detectarlo; el viewer puede resaltarlo. Sin default.
+        hitos: { type: [String], default: undefined },
 
         // === PDF en S3 (Fase 1) ===
         pdfStatus: { type: String, enum: PDF_STATUSES, default: "pending", index: true },

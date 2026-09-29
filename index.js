@@ -70,6 +70,11 @@ module.exports = {
     // pjn-mis-causas (listado), pjn-workers (Vinculados), hub y pjn-api (alta).
     incidenteSufijo: require("./src/utils/incidente-sufijo"),
 
+    // Detector de la decisión de ACUMULAR una causa a otra en sus movimientos (el portal
+    // reescribe la historia de la acumulada). Guard del resync de pjn-workers y campo
+    // `acumulacion` de las causas.
+    acumulacion: require("./src/utils/acumulacion"),
+
     // Guard de drift estructural del HTML del PJN: detecta cambios en la
     // estructura y abre incidentes (PjnHtmlDriftIncident) con dedup. Usado
     // por los 3 repos que scrapean el portal.
