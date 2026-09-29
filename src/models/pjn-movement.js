@@ -49,6 +49,8 @@ const SCRAPING_SOURCES = [
     "cache",
     "pjn-login",
     "sync",
+    // pdf-backfill-worker (pjn-workers y pjn-mis-causas): fill del historial de PDFs.
+    "backfill",
 ];
 
 const PDF_STATUSES = [
