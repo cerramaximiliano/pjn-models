@@ -65,6 +65,11 @@ module.exports = {
     // Reutilizable por scrapers, RAG workers, bridge cache→Atlas, etc.
     movementId: require("./src/utils/movement-id"),
 
+    // Identidad de incidentes: normaliza el sufijo ("01/2" → "1/2", "CA001" → null) y
+    // parsea la celda EXPEDIENTE de la pestaña Vinculados. Un solo parser para
+    // pjn-mis-causas (listado), pjn-workers (Vinculados), hub y pjn-api (alta).
+    incidenteSufijo: require("./src/utils/incidente-sufijo"),
+
     // Guard de drift estructural del HTML del PJN: detecta cambios en la
     // estructura y abre incidentes (PjnHtmlDriftIncident) con dedup. Usado
     // por los 3 repos que scrapean el portal.

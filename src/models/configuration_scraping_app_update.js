@@ -124,6 +124,19 @@ const schema = new mongoose.Schema(
         enabled: true
       }
     },
+    // Pestaña Vinculados del detalle público (lista de incidentes del principal).
+    // Se captura con la página ya abierta, después del scraping de movimientos
+    // y antes de cerrarla (0 captchas extra; +0,5 s la lista, +~3 s por página).
+    // Apagado por defecto: encender tras validar la tanda de las 08:00 ART.
+    vinculados: {
+      type: {
+        capturarEnAppUpdate: { type: Boolean, default: false },
+        refreshDays: { type: Number, default: 3, min: 0, max: 60 },   // no releer si capturedAt es más nuevo
+        maxPaginas: { type: Number, default: 4, min: 1, max: 20 }      // 15 filas por página
+      },
+      required: false,
+      default: { capturarEnAppUpdate: false, refreshDays: 3, maxPaginas: 4 }
+    },
     // Chromium que vive entre documentos en vez de uno por documento.
     // Lanzar un browser abre ~15-30 conexiones nuevas; es esa tasa (no la
     // concurrencia) lo que castiga al router y pierde el init.js del captcha.

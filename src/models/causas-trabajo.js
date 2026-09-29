@@ -551,5 +551,7 @@ schema.add(require("../shared/sentencias-scan-fields"));
 schema.add(require("../shared/etapa-procesal-fields"));
 // Vínculo principal → incidentes por _id (ver shared/incidentes-fields.js)
 schema.add(require("../shared/incidentes-fields"));
+// Pestaña Vinculados del detalle público, solo en principales (ver shared/vinculados-fields.js)
+schema.add(require("../shared/vinculados-fields"));
 
 module.exports = mongoose.models.CausasTrabajo || mongoose.model("CausasTrabajo", schema);
