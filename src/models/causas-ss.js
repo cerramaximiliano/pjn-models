@@ -243,7 +243,7 @@ const schema = new mongoose.Schema(
       credentialsId: { type: mongoose.Schema.Types.ObjectId, ref: 'PjnCredentials', required: true },
       userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
       linkedAt: { type: Date, default: Date.now },
-      source: { type: String, enum: ['sync', 'manual'], default: 'sync' }
+      source: { type: String, enum: ['sync', 'manual', 'backfill-alta'], default: 'sync' }
     }],
     // Denormalizado: true si ≥1 linkedCredentials apunta a una credencial enabled.
     // Discrimina el ruteo de actualización: con credencial activa → pjn-mis-causas
@@ -268,7 +268,7 @@ const schema = new mongoose.Schema(
       },
       movimientosAdded: { type: Number, default: 0 },
       movimientosTotal: { type: Number, default: 0 },
-      updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery', 'stuck_fix', 'reset_for_reverification', 'link', 'unlink', 'privacy_change', 'privacy_reset', 'update_flag', 'saij_link', 'saij_unlink', 'resync', 'acumulacion'], required: true },
+      updateType: { type: String, enum: ['create', 'update', 'verify', 'error', 'recovery', 'stuck_fix', 'reset_for_reverification', 'link', 'unlink', 'privacy_change', 'privacy_reset', 'update_flag', 'saij_link', 'saij_unlink', 'resync', 'acumulacion', 'repair'], required: true },
       success: { type: Boolean, default: true },
       movimientosDetails: [{
         fecha: Date,
