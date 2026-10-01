@@ -127,19 +127,20 @@ const schema = new mongoose.Schema(
     // Pestaña Vinculados del detalle público (lista de incidentes del principal).
     // Se captura con la página ya abierta, después del scraping de movimientos
     // y antes de cerrarla (0 captchas extra; +0,5 s la lista, +~3 s por página).
-    // Apagado por defecto: encender tras validar la tanda de las 08:00 ART.
+    // Defaults = valores en producción desde 2026-09-30 (los 6 docs: encendido, 1 día, 10 páginas);
+    // se ajustan desde el admin (Workers → app-update → Vinculados).
     vinculados: {
       type: {
-        capturarEnAppUpdate: { type: Boolean, default: false },
+        capturarEnAppUpdate: { type: Boolean, default: true },
         // Leer INCIDENTES seguidos entrando por su fila de Vinculados del principal: verify,
         // stuck-documents y app-update los incluyen en sus pools (pjn-workers
         // utils/incidente-vinculados.js). Basta con que un doc de la colección lo tenga.
-        leerIncidentes: { type: Boolean, default: false },
-        refreshDays: { type: Number, default: 3, min: 0, max: 60 },   // no releer si capturedAt es más nuevo
-        maxPaginas: { type: Number, default: 4, min: 1, max: 20 }      // 15 filas por página
+        leerIncidentes: { type: Boolean, default: true },
+        refreshDays: { type: Number, default: 1, min: 0, max: 60 },   // no releer si capturedAt es más nuevo
+        maxPaginas: { type: Number, default: 10, min: 1, max: 20 }      // 15 filas por página
       },
       required: false,
-      default: { capturarEnAppUpdate: false, leerIncidentes: false, refreshDays: 3, maxPaginas: 4 }
+      default: { capturarEnAppUpdate: true, leerIncidentes: true, refreshDays: 1, maxPaginas: 10 }
     },
     // Chromium que vive entre documentos en vez de uno por documento.
     // Lanzar un browser abre ~15-30 conexiones nuevas; es esa tasa (no la
