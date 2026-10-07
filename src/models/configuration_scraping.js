@@ -437,6 +437,18 @@ const schema = new mongoose.Schema(
         type: String,
         default: ''
       },
+      // 2026-10-06: con poca confianza el solver pide otro desafío (hasta maxRefreshes)
+      // antes de usar el proveedor pago, que está APAGADO salvo providerFallback:true
+      // (CapSolver acierta ~54 % con este captcha). Sin estos campos en el schema la API
+      // los descartaba al crear configs y los nuevos seguían pagando.
+      maxRefreshes: {
+        type: Number,
+        default: 5
+      },
+      providerFallback: {
+        type: Boolean,
+        default: false
+      },
       logPath: {
         type: String,
         default: ''
