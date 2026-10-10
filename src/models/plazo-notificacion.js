@@ -114,11 +114,16 @@ const schema = new mongoose.Schema(
 
         // Validación/populado a carpetas de usuarios (plazos-folders-worker):
         // marca que el vencimiento fue validado y sincronizado a las carpetas
-        // de las cuentas habilitadas (fase de prueba: cuentas test).
+        // de las cuentas habilitadas (en Atlas, vía el endpoint interno del hub).
         validacion: {
-            estado: { type: String, enum: [null, "validada", "sin_carpeta"], default: null, index: true },
+            // rechazada = el hub devolvió 400 (payload inválido): no se reintenta.
+            estado: { type: String, enum: [null, "validada", "sin_carpeta", "rechazada"], default: null, index: true },
             syncedAt: { type: Date, default: null },
             folders: { type: [{ folderId: mongoose.Schema.Types.ObjectId, userId: mongoose.Schema.Types.ObjectId }], default: undefined },
+            // Respuesta del hub por carpeta (source 'atlas'): [{folderId, userId,
+            // accion, eventId, notificationId}] — ver contrato de plazos.
+            resultados: { type: mongoose.Schema.Types.Mixed, default: undefined },
+            error: { type: String, default: undefined },
         },
 
         // ── Trazabilidad ──────────────────────────────────────────────────────
