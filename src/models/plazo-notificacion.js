@@ -20,8 +20,10 @@ const mongoose = require("mongoose");
  *     norma subsidiaria) y computa el vencimiento con dias-habiles.js →
  *     campos `plazo`.
  *
- * Vive en la base LOCAL de worker_01 (default mongoose connection, igual que
- * las causas y que previsional-liquidacion-urls).
+ * Mismo código, dos bases (default mongoose connection en cada caso):
+ *   - caché (rs0, laboratorio): cédulas de las causas de la caché.
+ *   - usuarios (Atlas, producción): cédulas de las causas de los usuarios,
+ *     con origen 'usuario' (app-update-worker / private-causas-update-worker).
  */
 const schema = new mongoose.Schema(
     {
@@ -60,6 +62,11 @@ const schema = new mongoose.Schema(
             default: "otro",
             index: true,
         },
+
+        // Base de origen de la cédula. Sin valor = caché (docs previos al campo).
+        // En Atlas se filtra siempre por 'usuario' (la colección residual del
+        // espejo apagado el 25/08 quedó renombrada, pero el filtro no depende de eso).
+        origen: { type: String, enum: ["cache", "usuario"] },
 
         // ── Estado del pipeline ───────────────────────────────────────────────
         processingStatus: {
@@ -134,5 +141,10 @@ schema.index({ causaId: 1, sourceId: 1 }, { unique: true });
 // Cola de consumo de la capa 2.
 schema.index({ processingStatus: 1, detectedAt: 1 });
 schema.index({ fuero: 1, detectedAt: -1 });
+// Cola del plazos-worker-usuarios (PLAZOS_TARGET=usuarios): filtra por origen.
+schema.index(
+    { origen: 1, processingStatus: 1, detectedAt: 1 },
+    { partialFilterExpression: { origen: "usuario" } }
+);
 
 module.exports = mongoose.models.PlazoNotificacion || mongoose.model("PlazoNotificacion", schema);

@@ -122,10 +122,13 @@ module.exports = {
     diasHabiles: require("./src/utils/dias-habiles"),
 
     // Subsistema de plazos (capa 1): notificaciones/cédulas detectadas en
-    // movimientos NUEVOS por update-movimientos-worker — cola de entrada del
-    // pipeline de lectura y cómputo de vencimientos. Colección
-    // `plazos-notificaciones` en la base local de worker_01.
+    // movimientos NUEVOS — cola de entrada del pipeline de lectura y cómputo
+    // de vencimientos. Colección `plazos-notificaciones`, mismo código en dos
+    // bases: caché (rs0, update-movimientos-worker) y usuarios (Atlas,
+    // app-update-worker y Mis Causas, origen 'usuario'). plazosDeteccion es
+    // el detector compartido (detectAndSavePlazoNotificaciones).
     PlazoNotificacion: require("./src/models/plazo-notificacion"),
+    plazosDeteccion: require("./src/utils/plazos-deteccion"),
 
     // Subsistema de plazos (capa 3): reglas de plazo SUBSIDIARIO por acto
     // notificado (colección `plazos-normativa`, curada por el admin, seed
