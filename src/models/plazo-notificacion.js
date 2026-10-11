@@ -67,6 +67,27 @@ const schema = new mongoose.Schema(
         // En Atlas se filtra siempre por 'usuario' (la colección residual del
         // espejo apagado el 25/08 quedó renombrada, pero el filtro no depende de eso).
         origen: { type: String, enum: ["cache", "usuario"] },
+        // Quién creó el registro: sin valor = movimientos (F1 / update-movimientos);
+        // 'bandeja' = la bandeja de notificaciones del PJN (pjn-mis-causas).
+        fuente: { type: String, enum: ["movimientos", "bandeja"] },
+        // Datos de la bandeja de notificaciones del PJN (notif.pjn.gov.ar) cuando la
+        // cédula llegó (también) por ahí: fecha exacta de la notificación y
+        // destinatarios con CUIT, más qué usuarios/credenciales la recibieron.
+        bandeja: {
+            type: new mongoose.Schema(
+                {
+                    userIds: [mongoose.Schema.Types.ObjectId],
+                    credentialsIds: [mongoose.Schema.Types.ObjectId],
+                    notificationIds: [mongoose.Schema.Types.ObjectId],
+                    numeroCedula: String,
+                    fecha: Date,
+                    destinatarios: [{ _id: false, cuit: String, nombre: String }],
+                    reconciliadaAt: Date,
+                },
+                { _id: false }
+            ),
+            default: undefined,
+        },
 
         // ── Estado del pipeline ───────────────────────────────────────────────
         processingStatus: {
@@ -90,6 +111,10 @@ const schema = new mongoose.Schema(
                 // plazo corre desde una notificación futura por cédula/oficio
                 // que confecciona el notificado, no desde esta cédula).
                 "revision_manual",
+                // Cédula de la bandeja del PJN sin movimiento (documento) todavía:
+                // el plazos-worker no la toma; pasa a pending cuando el
+                // movimiento llega (plazos-bandeja.reconciliarConMovimiento).
+                "esperando_documento",
             ],
             default: "pending",
             index: true,

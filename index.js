@@ -129,6 +129,9 @@ module.exports = {
     // el detector compartido (detectAndSavePlazoNotificaciones).
     PlazoNotificacion: require("./src/models/plazo-notificacion"),
     plazosDeteccion: require("./src/utils/plazos-deteccion"),
+    // Bandeja de notificaciones del PJN como fuente de cédulas (vinculador
+    // bandeja → causa → movimiento y registro en plazos-notificaciones).
+    plazosBandeja: require("./src/utils/plazos-bandeja"),
 
     // Subsistema de plazos (capa 3): reglas de plazo SUBSIDIARIO por acto
     // notificado (colección `plazos-normativa`, curada por el admin, seed

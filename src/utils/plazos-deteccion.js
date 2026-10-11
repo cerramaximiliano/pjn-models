@@ -100,6 +100,18 @@ async function detectAndSavePlazoNotificaciones({
 	if (detectadas.length === 0) return 0;
 
 	const Model = model || require('../models/plazo-notificacion');
+
+	// Si la cédula ya entró por la bandeja del PJN y esperaba el documento, ese
+	// registro pasa a la clave del movimiento antes del upsert: queda uno solo
+	// (y el $setOnInsert de abajo no lo pisa). Require diferido: plazos-bandeja
+	// importa este módulo.
+	const { reconciliarConMovimiento } = require('./plazos-bandeja');
+	if (Model.collection) {
+		for (const mov of detectadas) {
+			await reconciliarConMovimiento(Model.collection, causa._id, mov);
+		}
+	}
+
 	const ops = detectadas.map(mov => {
 		const sourceId = movementId.generateMovSourceId(mov);
 		return {
