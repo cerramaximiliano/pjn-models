@@ -24,9 +24,11 @@ const schema = new mongoose.Schema(
         // Umbral chars/página para marcar PDF escaneado (→ revision_manual:
         // cédula física digitalizada, no computable automáticamente).
         scanCharsPerPageThreshold: { type: Number, default: 150, min: 10, max: 2000 },
-        // Espejar los docs procesados a Atlas (colección plazos-notificaciones)
-        // para que el plazos-folders-worker pueda leer de Atlas según su config.
-        mirrorToAtlas: { type: Boolean, default: true },
+        // Solo base de usuarios (plazos-worker-usuarios): qué usuarios entran al
+        // cálculo. Sin valor → solo cuentas de prueba ({isTestAccount: true});
+        // {} → todas las causas de usuarios. (Reemplaza a mirrorToAtlas, retirado
+        // con la arquitectura de dos bases el 11/10/2026.)
+        filtroUsuarios: { type: mongoose.Schema.Types.Mixed, default: undefined },
         // Lote por ciclo de cron: con los 4 fueros activos la cola crece
         // mucho más rápido que 1 doc/min (diseño inicial).
         batchPorCiclo: { type: Number, default: 20, min: 1, max: 200 },
