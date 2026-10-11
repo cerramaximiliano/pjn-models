@@ -43,6 +43,7 @@ const FUERO_COLLECTION = {
 };
 
 const COLECCION_PLAZOS = 'plazos-notificaciones';
+const COLECCION_MOVIMIENTOS = 'pjn-movements';
 
 function soloDigitos(v) {
 	return String(v ?? '').replace(/\D/g, '');
@@ -81,7 +82,11 @@ function destinatariosDeBandeja(notif) {
 	for (const d of notif?.destinatarios || []) {
 		const cuit = soloDigitos(d?.cuit);
 		if (cuit.length !== 11 || porCuit.has(cuit)) continue;
-		porCuit.set(cuit, { cuit, nombre: d?.nombre ? String(d.nombre).trim() || null : null });
+		porCuit.set(cuit, {
+			cuit,
+			nombre: d?.nombre ? String(d.nombre).trim() || null : null,
+			tipo: d?.tipoDescripcion || d?.tipo || null,
+		});
 	}
 	return [...porCuit.values()];
 }
@@ -131,14 +136,53 @@ function camposMovimiento(mov) {
 }
 
 /**
+ * Escribe cedula.recepcion en el movimiento espejado (pjn-movements, _id
+ * "causaId:sourceId"). Solo $set/$addToSet punteados: no toca los sub-bloques
+ * de otros dueños (cedula.documento, cedula.resultado, cedula.plazo). Si el
+ * movimiento todavía no está espejado no hace nada (devuelve false).
+ */
+async function escribirRecepcionEnMovimiento(db, causaId, sourceId, recepcion) {
+	const addToSet = {};
+	for (const k of ['userIds', 'credentialsIds', 'notificationIds']) {
+		const vals = (recepcion[k] || []).filter(Boolean);
+		if (vals.length) addToSet[`cedula.recepcion.${k}`] = { $each: vals };
+	}
+	const res = await db.collection(COLECCION_MOVIMIENTOS).updateOne(
+		{ _id: `${causaId}:${sourceId}` },
+		{
+			$set: {
+				'cedula.recepcion.numeroCedula': recepcion.numeroCedula ?? null,
+				'cedula.recepcion.fechaNotificacion': recepcion.fechaNotificacion ?? null,
+				'cedula.recepcion.destinatarios': recepcion.destinatarios || [],
+				'cedula.recepcion.at': new Date(),
+			},
+			...(Object.keys(addToSet).length ? { $addToSet: addToSet } : {}),
+		}
+	);
+	return res.matchedCount > 0;
+}
+
+function recepcionDeBandeja(b) {
+	return {
+		numeroCedula: b?.numeroCedula ?? null,
+		fechaNotificacion: b?.fecha ?? null,
+		destinatarios: b?.destinatarios || [],
+		userIds: b?.userIds || [],
+		credentialsIds: b?.credentialsIds || [],
+		notificationIds: b?.notificationIds || [],
+	};
+}
+
+/**
  * Si hay un registro de bandeja esperando documento para esta cédula, lo pasa
  * a la clave del movimiento. Devuelve true si reconcilió algo.
  * Si ya existía otro registro con la clave del movimiento (carrera F1/bandeja),
  * le suma el bloque `bandeja` y borra el de espera: siempre queda uno.
  *
- * @param {Collection} col — plazos-notificaciones (driver nativo)
+ * @param {Collection} col — plazos-notificaciones (driver nativo o Model.collection)
+ * @param {Db} [db] — base de pjn-movements; si falta se toma de Model.collection.conn.db
  */
-async function reconciliarConMovimiento(col, causaId, mov) {
+async function reconciliarConMovimiento(col, causaId, mov, db = null) {
 	const numeroCedula = numeroCedulaDeDetalle(mov?.detalle);
 	if (!numeroCedula) return false;
 	const espera = await col.findOne({ causaId, sourceId: bandejaSourceId(numeroCedula) });
@@ -162,6 +206,7 @@ async function reconciliarConMovimiento(col, causaId, mov) {
 	} catch (err) {
 		if (err?.code !== 11000) throw err;
 		// Ya existe el registro del movimiento: sumarle la bandeja y borrar el de espera.
+		// (la recepción se escribe en el movimiento más abajo, en los dos casos)
 		const b = espera.bandeja || {};
 		await col.updateOne(
 			{ causaId, sourceId },
@@ -182,6 +227,11 @@ async function reconciliarConMovimiento(col, causaId, mov) {
 		);
 		await col.deleteOne({ _id: espera._id });
 	}
+	// La recepción de la bandeja pasa al movimiento espejado (registro único de la cédula).
+	if (espera.bandeja) {
+		const dbMov = db || col.conn?.db || null;
+		if (dbMov) await escribirRecepcionEnMovimiento(dbMov, causaId, sourceId, recepcionDeBandeja(espera.bandeja)).catch(() => false);
+	}
 	return true;
 }
 
@@ -197,10 +247,10 @@ async function reconciliarConMovimiento(col, causaId, mov) {
  *   accion: 'creada' | 'actualizada' | 'reconciliada' | 'esperando_documento' |
  *           'no_es_de_hoy' | 'sin_causa' | 'fuero_sin_reglas' | 'fuero_desconocido' | 'datos_incompletos'
  */
-async function registrarCedulaBandeja({ db, notif, userId, credentialsId, notificationId, soloHoy = true }) {
+async function registrarCedulaBandeja({ db, notif, userId, credentialsId, notificationId, soloHoy = true, vinculo = null }) {
 	if (soloHoy && !esDeHoyArgentina(notif?.fecha)) return { accion: 'no_es_de_hoy' };
 
-	const v = await vincularNotificacion(db, notif);
+	const v = vinculo || await vincularNotificacion(db, notif);
 	if (!v.causa) return { accion: v.motivo, fuero: v.fuero };
 	if (!FUEROS_PLAZOS.includes(v.fuero)) return { accion: 'fuero_sin_reglas', fuero: v.fuero };
 
@@ -240,7 +290,7 @@ async function registrarCedulaBandeja({ db, notif, userId, credentialsId, notifi
 
 	if (v.movimiento) {
 		// Un registro previo de espera (llegó la bandeja antes que el movimiento) pasa a la clave del movimiento.
-		const reconciliada = await reconciliarConMovimiento(col, v.causa._id, v.movimiento);
+		const reconciliada = await reconciliarConMovimiento(col, v.causa._id, v.movimiento, db);
 		const sourceId = movementId.generateMovSourceId(v.movimiento);
 		const { movimiento, tipoNotificacion } = camposMovimiento(v.movimiento);
 		const res = await col.findOneAndUpdate(
@@ -268,6 +318,35 @@ async function registrarCedulaBandeja({ db, notif, userId, credentialsId, notifi
 	return { accion: 'esperando_documento', plazoId: res?.value?._id, fuero: v.fuero };
 }
 
+/**
+ * Procesa una notificación de la bandeja (cualquier fecha):
+ *   1. la vincula con su causa y su movimiento;
+ *   2. si el movimiento está espejado, escribe cedula.recepcion en pjn-movements
+ *      (registro único de la cédula, todas las fechas);
+ *   3. solo si la cédula es de HOY (ART) y del fuero con reglas, registra el plazo
+ *      (registrarCedulaBandeja). Las viejas no generan plazos.
+ * @returns {Promise<{vinculo: {estado, fuero, causaId, movementId, espejado, at}, plazo: {accion, plazoId?}}>}
+ *   vinculo.estado: 'vinculada' | 'sin_movimiento' | 'sin_causa' | 'fuero_desconocido' | 'datos_incompletos'
+ */
+async function procesarNotificacionBandeja({ db, notif, userId, credentialsId, notificationId }) {
+	const v = await vincularNotificacion(db, notif);
+	const vinculo = { estado: v.motivo, fuero: v.fuero, causaId: v.causa?._id || null, movementId: null, espejado: false, at: new Date() };
+	if (v.causa && v.movimiento) {
+		const sourceId = movementId.generateMovSourceId(v.movimiento);
+		vinculo.movementId = `${v.causa._id}:${sourceId}`;
+		vinculo.espejado = await escribirRecepcionEnMovimiento(db, v.causa._id, sourceId, {
+			numeroCedula: soloDigitos(notif.numeroCedula),
+			fechaNotificacion: notif.fecha ? new Date(notif.fecha) : null,
+			destinatarios: destinatariosDeBandeja(notif),
+			userIds: [userId],
+			credentialsIds: [credentialsId],
+			notificationIds: [notificationId],
+		});
+	}
+	const plazo = await registrarCedulaBandeja({ db, notif, userId, credentialsId, notificationId, vinculo: v });
+	return { vinculo, plazo };
+}
+
 module.exports = {
 	FUERO_COLLECTION,
 	fueroDeNotificacion,
@@ -279,4 +358,6 @@ module.exports = {
 	vincularNotificacion,
 	reconciliarConMovimiento,
 	registrarCedulaBandeja,
+	escribirRecepcionEnMovimiento,
+	procesarNotificacionBandeja,
 };

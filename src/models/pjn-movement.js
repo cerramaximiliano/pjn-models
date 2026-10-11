@@ -157,6 +157,60 @@ const schema = new mongoose.Schema(
 
         // De dónde vino la última vez que lo vimos (worker o source).
         scrapingSource: { type: String, enum: SCRAPING_SOURCES },
+
+        // === Cédula (solo movimientos que son notificaciones) ===
+        // Registro único de la cédula. Cada dueño escribe SOLO su sub-bloque con
+        // $set punteado ("cedula.recepcion.x"), nunca el bloque entero:
+        //   documento — pjn-rag-cedulas (pjn-rag-workers): ficha leída del PDF
+        //               (numero, emisor, instrumento, fechaEmision, fechaResolucion,
+        //               tribunal, oficina, firmante, expediente, destinatarios[]
+        //               con cuit si el domicilio es electrónico, resolucion,
+        //               adjuntosRemitidos, version, at). Detalle completo en rs0
+        //               rag-movement-docs (mismo _id).
+        //   resultado — pjn-rag-cedulas-diligenciadas: cédulas en papel (resultado,
+        //               modalidad, fechaNotificacion del dorso, fuente, movementId).
+        //   recepcion — bandeja de notificaciones del PJN (pjn-mis-causas,
+        //               plazosBandeja): fecha exacta y destinatarios con CUIT, y
+        //               qué usuarios/credenciales la recibieron.
+        //   plazo     — plazos-worker-usuarios: referencia al plazo calculado.
+        // documento/resultado son Mixed para que su dueño los evolucione sin
+        // tocar este esquema.
+        cedula: {
+            type: new mongoose.Schema(
+                {
+                    documento: { type: mongoose.Schema.Types.Mixed },
+                    resultado: { type: mongoose.Schema.Types.Mixed },
+                    recepcion: {
+                        type: new mongoose.Schema(
+                            {
+                                numeroCedula: String,
+                                fechaNotificacion: Date, // instante exacto (portal)
+                                destinatarios: [{ _id: false, cuit: String, nombre: String, tipo: String }],
+                                userIds: [mongoose.Schema.Types.ObjectId],
+                                credentialsIds: [mongoose.Schema.Types.ObjectId],
+                                notificationIds: [mongoose.Schema.Types.ObjectId],
+                                at: Date,
+                            },
+                            { _id: false }
+                        ),
+                    },
+                    plazo: {
+                        type: new mongoose.Schema(
+                            {
+                                plazoNotificacionId: mongoose.Schema.Types.ObjectId,
+                                estado: String, // processingStatus del plazo
+                                fuente: String, // 'texto' | 'norma'
+                                vencimiento: String, // 'YYYY-MM-DD'
+                                at: Date,
+                            },
+                            { _id: false }
+                        ),
+                    },
+                },
+                { _id: false }
+            ),
+            default: undefined,
+        },
     },
     {
         collection: "pjn-movements",
@@ -174,6 +228,8 @@ schema.index({ causaId: 1, fecha: -1, posicionDia: 1 });
 // construcción ("causaId:sourceId"), pero este índice deja explícita la
 // invariante y permite queries por sourceId aislado.
 schema.index({ causaId: 1, sourceId: 1 }, { unique: true });
+// Vínculo bandeja → movimiento por número de cédula (sparse: solo cédulas).
+schema.index({ "cedula.recepcion.numeroCedula": 1 }, { sparse: true });
 // Queries cross-causa por fuero+fecha (notification coordinator, etc.).
 schema.index({ fuero: 1, fecha: -1 });
 

@@ -81,7 +81,7 @@ const schema = new mongoose.Schema(
                     notificationIds: [mongoose.Schema.Types.ObjectId],
                     numeroCedula: String,
                     fecha: Date,
-                    destinatarios: [{ _id: false, cuit: String, nombre: String }],
+                    destinatarios: [{ _id: false, cuit: String, nombre: String, tipo: String }],
                     reconciliadaAt: Date,
                 },
                 { _id: false }
