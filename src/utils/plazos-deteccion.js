@@ -21,8 +21,9 @@
  *   - Dedup por (causaId, sourceId) con el id determinístico de
  *     movement-id.js — estable aunque el movimiento no tenga URL.
  *   - Solo movimientos nuevos (novedades): las cédulas históricas tienen
- *     plazos ya vencidos y no se capturan. `maxAgeDays` descarta además las
- *     cédulas viejas que llegan como "nuevas" (causa retomada tras meses).
+ *     plazos ya vencidos y no se capturan. `maxAgeDays` (default 5) descarta
+ *     además las cédulas viejas que llegan como "nuevas" (causa retomada tras
+ *     meses); null = sin ventana.
  *
  * Movido desde pjn-workers-scraping/src/utils/notificaciones-plazos.js
  * (que queda como re-export).
@@ -31,6 +32,9 @@
  */
 
 const movementId = require('./movement-id');
+
+// Ventana por defecto: cédulas con fecha de hace más de N días no se procesan.
+const MAX_AGE_DAYS_DEFAULT = 5;
 
 // Fueros con reglas de plazo (plazos-normativa).
 const FUEROS_PLAZOS = ['CIV', 'CSS', 'CNT', 'COM'];
@@ -70,7 +74,7 @@ function classifyTipoNotificacion(tipo) {
  * @param {string} opts.collectionName — colección de causas origen
  * @param {string} [opts.worker='update-movimientos']
  * @param {string} [opts.origen] — 'cache' | 'usuario' (sin valor = caché, docs previos al campo)
- * @param {number} [opts.maxAgeDays] — descarta cédulas con fecha anterior a N días
+ * @param {number|null} [opts.maxAgeDays=5] — descarta cédulas con fecha anterior a N días (null = sin ventana)
  * @returns {Promise<number>} cantidad de notificaciones realmente nuevas
  */
 async function detectAndSavePlazoNotificaciones({
@@ -81,7 +85,7 @@ async function detectAndSavePlazoNotificaciones({
 	collectionName,
 	worker = 'update-movimientos',
 	origen,
-	maxAgeDays,
+	maxAgeDays = MAX_AGE_DAYS_DEFAULT,
 }) {
 	if (!FUEROS_PLAZOS.includes(fuero)) return 0;
 
@@ -133,4 +137,4 @@ async function detectAndSavePlazoNotificaciones({
 	return result.upsertedCount ?? 0;
 }
 
-module.exports = { detectAndSavePlazoNotificaciones, isNotificacion, classifyTipoNotificacion, FUEROS_PLAZOS };
+module.exports = { detectAndSavePlazoNotificaciones, isNotificacion, classifyTipoNotificacion, FUEROS_PLAZOS, MAX_AGE_DAYS_DEFAULT };
