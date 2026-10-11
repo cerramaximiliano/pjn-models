@@ -228,8 +228,6 @@ schema.index({ causaId: 1, fecha: -1, posicionDia: 1 });
 // construcción ("causaId:sourceId"), pero este índice deja explícita la
 // invariante y permite queries por sourceId aislado.
 schema.index({ causaId: 1, sourceId: 1 }, { unique: true });
-// Vínculo bandeja → movimiento por número de cédula (sparse: solo cédulas).
-schema.index({ "cedula.recepcion.numeroCedula": 1 }, { sparse: true });
 // Queries cross-causa por fuero+fecha (notification coordinator, etc.).
 schema.index({ fuero: 1, fecha: -1 });
 
