@@ -117,6 +117,17 @@ const schema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    // 2026-10-11: al terminar el tramo el worker ya no manda mail (COMPLETION_EMAIL=1 lo reactiva);
+    // deja completedAt y completionStats, que el resumen de la flota (flota-alertas) agrupa 2x/día.
+    completedAt: {
+      type: Date
+    },
+    completionStats: {
+      found: { type: Number },        // causas halladas en el tramo
+      rangeSize: { type: Number },    // range_end - range_start + 1
+      durationMin: { type: Number },  // minutos desde createdAt del config
+      host: { type: String }          // PORTAL_SLOTS_HOST / HOSTNAME del worker que lo cerró
+    },
     balance: {
       twoCaptcha: {
         type: Boolean,
