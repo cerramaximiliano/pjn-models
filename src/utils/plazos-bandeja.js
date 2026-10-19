@@ -26,7 +26,7 @@
  */
 
 const movementId = require('./movement-id');
-const { FUEROS_PLAZOS, classifyTipoNotificacion } = require('./plazos-deteccion');
+const { FUEROS_PLAZOS, classifyTipoNotificacion, MAX_AGE_DAYS_DEFAULT } = require('./plazos-deteccion');
 
 // Prefijo de numeración del portal (expediente.numeracion) → colección de causas.
 const FUERO_COLLECTION = {
@@ -242,13 +242,19 @@ async function reconciliarConMovimiento(col, causaId, mov, db = null) {
  * @param {Db}     opts.db — base Atlas (causas + plazos-notificaciones), driver nativo
  * @param {Object} opts.notif — item de la API (o doc de pjn-notifications)
  * @param {*}      opts.userId, opts.credentialsId, opts.notificationId — ObjectIds de la app
- * @param {boolean} [opts.soloHoy=true] — regla del producto: solo cédulas con fecha de HOY (ART)
+ * @param {number} [opts.maxAgeDays=5] — ventana: cédulas con fecha de hasta N días (decisión del usuario
+ *           19/10; antes solo las de HOY). Las que no son de hoy quedan con `bandeja.tardia` y la entrega
+ *           (plazos-folders-worker) exige para ellas vencimiento > hoy, igual que `source.primeraSync`.
+ * @param {boolean} [opts.soloHoy=false] — regla anterior (solo HOY, ART), por si hay que volver atrás
  * @returns {Promise<{accion: string, plazoId?: *, fuero?: string}>}
  *   accion: 'creada' | 'actualizada' | 'reconciliada' | 'esperando_documento' |
- *           'no_es_de_hoy' | 'sin_causa' | 'fuero_sin_reglas' | 'fuero_desconocido' | 'datos_incompletos'
+ *           'no_es_de_hoy' | 'fuera_de_ventana' | 'sin_causa' | 'fuero_sin_reglas' | 'fuero_desconocido' | 'datos_incompletos'
  */
-async function registrarCedulaBandeja({ db, notif, userId, credentialsId, notificationId, soloHoy = true, vinculo = null }) {
-	if (soloHoy && !esDeHoyArgentina(notif?.fecha)) return { accion: 'no_es_de_hoy' };
+async function registrarCedulaBandeja({ db, notif, userId, credentialsId, notificationId, soloHoy = false, maxAgeDays = Number(process.env.PLAZOS_DETECCION_MAX_DIAS) || MAX_AGE_DAYS_DEFAULT, vinculo = null }) {
+	const deHoy = esDeHoyArgentina(notif?.fecha);
+	if (soloHoy && !deHoy) return { accion: 'no_es_de_hoy' };
+	const t = notif?.fecha ? new Date(notif.fecha).getTime() : NaN;
+	if (!deHoy && (Number.isNaN(t) || (maxAgeDays && Date.now() - t > maxAgeDays * 24 * 60 * 60 * 1000))) return { accion: 'fuera_de_ventana' };
 
 	const v = vinculo || await vincularNotificacion(db, notif);
 	if (!v.causa) return { accion: v.motivo, fuero: v.fuero };
@@ -286,6 +292,8 @@ async function registrarCedulaBandeja({ db, notif, userId, credentialsId, notifi
 		detectedAt: now,
 		createdAt: now,
 		source: { worker: 'bandeja', collectionName: v.collectionName, collectedAt: now },
+		// Levantada después de su día: solo se entrega si vence mañana o después.
+		...(deHoy ? {} : { 'bandeja.tardia': true }),
 	};
 
 	if (v.movimiento) {
@@ -323,8 +331,8 @@ async function registrarCedulaBandeja({ db, notif, userId, credentialsId, notifi
  *   1. la vincula con su causa y su movimiento;
  *   2. si el movimiento está espejado, escribe cedula.recepcion en pjn-movements
  *      (registro único de la cédula, todas las fechas);
- *   3. solo si la cédula es de HOY (ART) y del fuero con reglas, registra el plazo
- *      (registrarCedulaBandeja). Las viejas no generan plazos.
+ *   3. si la cédula tiene hasta 5 días y es de un fuero con reglas, registra el plazo
+ *      (registrarCedulaBandeja); las que no son de hoy quedan con `bandeja.tardia`.
  * @returns {Promise<{vinculo: {estado, fuero, causaId, movementId, espejado, at}, plazo: {accion, plazoId?}}>}
  *   vinculo.estado: 'vinculada' | 'sin_movimiento' | 'sin_causa' | 'fuero_desconocido' | 'datos_incompletos'
  */

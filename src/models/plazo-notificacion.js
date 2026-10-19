@@ -83,6 +83,8 @@ const schema = new mongoose.Schema(
                     fecha: Date,
                     destinatarios: [{ _id: false, cuit: String, nombre: String, tipo: String }],
                     reconciliadaAt: Date,
+                    // Levantada por la bandeja después de su día: la entrega exige vencimiento > hoy.
+                    tardia: Boolean,
                 },
                 { _id: false }
             ),

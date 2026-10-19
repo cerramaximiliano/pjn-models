@@ -58,6 +58,7 @@ const schema = new mongoose.Schema(
         // Quién y cuándo la verificó (revisión legal, desde la admin).
         verificadoPor: { type: String, default: null },
         verificadoAt: { type: Date, default: null },
+        verificadoNota: { type: String, default: null },
         notas: { type: String, default: "" },
     },
     {
