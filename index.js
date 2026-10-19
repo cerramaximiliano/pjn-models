@@ -120,6 +120,9 @@ module.exports = {
     // Mongoose-agnóstica: recibe el calendario como Set (FeriadoJudicial.getSet).
     FeriadoJudicial: require("./src/models/feriado-judicial"),
     diasHabiles: require("./src/utils/dias-habiles"),
+    // Generación anual (generarAnio) y control de cobertura del calendario
+    // (cobertura, sinVerificarProximos): admin (crons), pjn-api y plazos-worker.
+    feriadosCalendario: require("./src/utils/feriados-calendario"),
 
     // Subsistema de plazos (capa 1): notificaciones/cédulas detectadas en
     // movimientos NUEVOS — cola de entrada del pipeline de lectura y cómputo

@@ -22,6 +22,11 @@
  * ⚠️ Los docs verificado:false son ESTIMACIONES. Antes de confiar plazos que
  * los atraviesen, confirmarlos desde la admin (o marcar verificado a mano).
  *
+ * La generación de un año y el control de cobertura viven en
+ * src/utils/feriados-calendario.js (mismas reglas; feria de julio estimada
+ * como las dos semanas que terminan el último viernes). Este script queda
+ * para re-sembrar 2024–2027.
+ *
  * Uso:
  *   FERIADOS_URLDB="mongodb://localhost:27017/law_analytics" node scripts/maintenance/seed-feriados-judiciales.js
  * Fallback de conexión: FERIADOS_URLDB || URLDB_LOCAL || URLDB || localhost.
