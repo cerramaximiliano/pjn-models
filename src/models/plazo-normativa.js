@@ -55,6 +55,9 @@ const schema = new mongoose.Schema(
         habilitado: { type: Boolean, default: true },
         // false = sembrada, pendiente de revisión jurídica del admin.
         verificado: { type: Boolean, default: false },
+        // Quién y cuándo la verificó (revisión legal, desde la admin).
+        verificadoPor: { type: String, default: null },
+        verificadoAt: { type: Date, default: null },
         notas: { type: String, default: "" },
     },
     {

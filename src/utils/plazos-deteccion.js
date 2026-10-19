@@ -24,6 +24,10 @@
  *     plazos ya vencidos y no se capturan. `maxAgeDays` (default 5) descarta
  *     además las cédulas viejas que llegan como "nuevas" (causa retomada tras
  *     meses); null = sin ventana.
+ *   - `primeraSync: true` (causa recién agregada, 1.ª población): se detectan
+ *     igual con la ventana de 5 días y quedan con `source.primeraSync`; la
+ *     entrega (plazos-folders-worker) exige para ellas vencimiento > hoy
+ *     (decisión del usuario 19/10, P17).
  *
  * Movido desde pjn-workers-scraping/src/utils/notificaciones-plazos.js
  * (que queda como re-export).
@@ -86,6 +90,7 @@ async function detectAndSavePlazoNotificaciones({
 	worker = 'update-movimientos',
 	origen,
 	maxAgeDays = MAX_AGE_DAYS_DEFAULT,
+	primeraSync = false,
 }) {
 	if (!FUEROS_PLAZOS.includes(fuero)) return 0;
 
@@ -137,7 +142,7 @@ async function detectAndSavePlazoNotificaciones({
 						processingStatus: mov.url ? 'pending' : 'no_url',
 						detectedAt: now,
 						...(origen ? { origen } : {}),
-						source: { worker, collectionName, collectedAt: now },
+						source: { worker, collectionName, collectedAt: now, ...(primeraSync ? { primeraSync: true } : {}) },
 					},
 				},
 				upsert: true,

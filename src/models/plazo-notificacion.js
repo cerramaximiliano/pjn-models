@@ -157,6 +157,9 @@ const schema = new mongoose.Schema(
             worker: { type: String },
             collectionName: { type: String },
             collectedAt: { type: Date },
+            // Detectada en la 1.ª población de una causa recién agregada (P17):
+            // la entrega exige vencimiento > hoy.
+            primeraSync: { type: Boolean, default: undefined },
         },
     },
     {
