@@ -52,6 +52,7 @@ const schema = new mongoose.Schema(
             extracted: { type: Number, default: 0 },
             ocrNeeded: { type: Number, default: 0 },
             revisionManual: { type: Number, default: 0 },
+            requiereTipoProceso: { type: Number, default: 0 }, // P21: sin tipo de proceso conocido
             notPdf: { type: Number, default: 0 },
             failed: { type: Number, default: 0 },
         },

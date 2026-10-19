@@ -54,6 +54,11 @@ const schema = new mongoose.Schema(
         prioridad: { type: Number, default: 100 },
         habilitado: { type: Boolean, default: true },
         // false = sembrada, pendiente de revisión jurídica del admin.
+        // Tipo de proceso al que aplica la variante (P21): 'ordinario' |
+        // 'sumario' (= sumarísimo) | null (cualquiera). Un acto cuyo plazo
+        // depende del trámite tiene una regla por tipo; si la causa no tiene
+        // tipo conocido no se propone vencimiento.
+        tipoProceso: { type: String, enum: [null, "ordinario", "sumario"], default: null },
         verificado: { type: Boolean, default: false },
         // Quién y cuándo la verificó (revisión legal, desde la admin).
         verificadoPor: { type: String, default: null },

@@ -117,6 +117,10 @@ const schema = new mongoose.Schema(
                 // el plazos-worker no la toma; pasa a pending cuando el
                 // movimiento llega (plazos-bandeja.reconciliarConMovimiento).
                 "esperando_documento",
+                // El plazo depende del tipo de proceso (ordinario / sumario) y
+                // la causa no lo tiene detectado (P21): no se propone
+                // vencimiento; vuelve a pending cuando se conoce el tipo.
+                "requiere_tipo_proceso",
             ],
             default: "pending",
             index: true,

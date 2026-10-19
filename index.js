@@ -123,6 +123,10 @@ module.exports = {
     // Generación anual (generarAnio) y control de cobertura del calendario
     // (cobertura, sinVerificarProximos): admin (crons), pjn-api y plazos-worker.
     feriadosCalendario: require("./src/utils/feriados-calendario"),
+    // Tipo de proceso de cada causa (P21): detector (declaración expresa o
+    // plazo expreso) y registro por causa en `causas-tipo-proceso`.
+    tipoProceso: require("./src/utils/tipo-proceso"),
+    TipoProcesoCausa: require("./src/models/tipo-proceso-causa"),
 
     // Subsistema de plazos (capa 1): notificaciones/cédulas detectadas en
     // movimientos NUEVOS — cola de entrada del pipeline de lectura y cómputo

@@ -9,6 +9,11 @@
  *
  * El resultado incluye el patrón y el snippet que matchearon — la UI debe
  * poder mostrar SIEMPRE por qué se aplicó esa regla.
+ *
+ * Tipo de proceso (P21): una regla con `tipoProceso` ('ordinario' | 'sumario',
+ * sumario = sumarísimo) solo aplica a causas de ese tipo. Si el acto matchea
+ * una regla con tipo y la causa no tiene tipo conocido, el resultado es
+ * `{ requiereTipoProceso: true, ... }` sin plazo: no se propone vencimiento.
  */
 
 // Misma normalización que el extractor de plazos expresos: mayúsculas, sin
@@ -62,10 +67,12 @@ function matchObjeto(reglaObjetos, objetoNorm) {
  * @param {string} [input.detalle] — detalle del movimiento (crudo)
  * @param {string} input.fuero — CIV | CSS | CNT | COM | ...
  * @param {string} [input.objeto] — objeto del juicio de la causa (crudo)
+ * @param {string} [input.tipoProceso] — 'ordinario' | 'sumario' | null (desconocido)
  * @returns {Object|null} — { clave, acto, label, plazoDias, tipoPlazo, norma,
- *   matchedPattern, matchedIn: 'texto'|'detalle', snippet, verificado } | null
+ *   tipoProceso, matchedPattern, matchedIn: 'texto'|'detalle', snippet, verificado }
+ *   | { requiereTipoProceso: true, clave, acto, label, plazoDias: null, ... } | null
  */
-function clasificarActo(reglas, { texto, detalle, fuero, objeto }) {
+function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = null }) {
     const t = texto ? norm(texto) : null;
     const d = detalle ? norm(detalle) : null;
     const o = objeto ? norm(objeto) : null;
@@ -75,6 +82,8 @@ function clasificarActo(reglas, { texto, detalle, fuero, objeto }) {
         const fueros = r.fuero && r.fuero.length ? r.fuero : ["*"];
         if (!fueros.includes("*") && !fueros.includes(fuero)) continue;
         if (!matchObjeto(r.objetos, o)) continue;
+        // Variante de otro tipo de proceso que el de la causa: no aplica.
+        if (r.tipoProceso && tipoProceso && r.tipoProceso !== tipoProceso) continue;
 
         let hit = null;
         let matchedIn = null;
@@ -86,6 +95,22 @@ function clasificarActo(reglas, { texto, detalle, fuero, objeto }) {
             hit = testMatchers(r.matchersDetalle, d);
             if (hit) matchedIn = "detalle";
         }
+        if (hit && r.tipoProceso && !tipoProceso) {
+            // El plazo depende del tipo de proceso y la causa no lo tiene.
+            return {
+                requiereTipoProceso: true,
+                clave: r._id,
+                acto: r.acto,
+                label: r.label,
+                plazoDias: null,
+                tipoPlazo: r.tipoPlazo || "habiles",
+                norma: r.norma,
+                verificado: false,
+                matchedPattern: hit.pattern,
+                matchedIn,
+                snippet: hit.snippet,
+            };
+        }
         if (hit) {
             return {
                 clave: r._id,
@@ -94,6 +119,7 @@ function clasificarActo(reglas, { texto, detalle, fuero, objeto }) {
                 plazoDias: r.plazoDias,
                 tipoPlazo: r.tipoPlazo || "habiles",
                 norma: r.norma,
+                tipoProceso: r.tipoProceso || null,
                 verificado: r.verificado === true,
                 matchedPattern: hit.pattern,
                 matchedIn,
