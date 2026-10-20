@@ -188,6 +188,16 @@ const schema = new mongoose.Schema(
     balance: { type: Object },
     userCausaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserCausa' }],
     folderIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FolderId' }],
+    // Tipo de proceso (P21 de plazos automáticos): copia del vigente en
+    // causas-tipo-proceso, la escribe tipo-proceso-worker. tipo: ordinario |
+    // sumario (incluye sumarísimo) | especial; fuente: expreso, plazo_demanda,
+    // plazo_agravios, objeto, objeto_especial, norma u operador.
+    tipoProceso: {
+        tipo: { type: String, default: null },
+        fuente: { type: String, default: null },
+        fecha: { type: Date, default: null },
+        actualizadoAt: { type: Date, default: null },
+    },
     source: {
       type: String,
       default: "scraping"

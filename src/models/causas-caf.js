@@ -96,6 +96,16 @@ const CausasCAFSchema = new Schema({
 
   // Campos para vinculación de folders
   folderIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Folder' }],
+  // Tipo de proceso (P21 de plazos automáticos): copia del vigente en
+  // causas-tipo-proceso, la escribe tipo-proceso-worker. tipo: ordinario |
+  // sumario (incluye sumarísimo) | especial; fuente: expreso, plazo_demanda,
+  // plazo_agravios, objeto, objeto_especial, norma u operador.
+  tipoProceso: {
+      tipo: { type: String, default: null },
+      fuente: { type: String, default: null },
+      fecha: { type: Date, default: null },
+      actualizadoAt: { type: Date, default: null },
+  },
   userCausaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   update: { type: Boolean, default: true },
   userUpdatesEnabled: [{
