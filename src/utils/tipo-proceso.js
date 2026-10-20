@@ -30,14 +30,17 @@
  * Además, sin tipo, una `sugerencia` por objeto (daños y perjuicios, cobro de
  * sumas…: típicamente ordinarios) que solo ve el operador: no habilita cálculo.
  *
- * Fueros: CIV, COM, CSS, CCF, CAF (CPCCN) y CNT (ley 18.345 + CPCCN supletorio).
+ * Fueros: CIV, COM, CSS, CCF, CAF y los federales del interior (CPCCN) y CNT (ley 18.345 +
+ * CPCCN supletorio).
  *
  * Medido el 19/10 en las causas de usuarios: por textos, 34 % de las civiles y
  * 21 % de las comerciales; CNT: traslado de demanda 10 días en las ordinarias,
  * 5 en las de objeto "JUICIO SUMARISIMO".
  */
 
-const FUEROS_TIPO_PROCESO = ['CIV', 'COM', 'CSS', 'CCF', 'CAF', 'CNT'];
+// Federales del interior (FBB, FCB…): competencia civil por el CPCCN (desde el 20/10, P22).
+const FUEROS_FEDERALES_INTERIOR = ['FBB', 'FCB', 'FCR', 'FCT', 'FGR', 'FLP', 'FMP', 'FMZ', 'FPA', 'FPO', 'FRE', 'FRO', 'FSA', 'FSM', 'FTU'];
+const FUEROS_TIPO_PROCESO = ['CIV', 'COM', 'CSS', 'CCF', 'CAF', 'CNT', ...FUEROS_FEDERALES_INTERIOR];
 
 // Colección de las causas de usuarios (Atlas) por fuero.
 const COLECCION_CAUSAS = {
@@ -47,6 +50,7 @@ const COLECCION_CAUSAS = {
 	CNT: 'causas-trabajo',
 	CCF: 'causas_ccf',
 	CAF: 'causas_caf',
+	...Object.fromEntries(FUEROS_FEDERALES_INTERIOR.map((f) => [f, `causas_${f.toLowerCase()}`])),
 };
 
 const FUENTES_TEXTO = ['expreso', 'plazo_demanda', 'plazo_agravios'];

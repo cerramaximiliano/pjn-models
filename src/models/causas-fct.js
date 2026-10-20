@@ -99,6 +99,13 @@ const CausasFCTSchema = new Schema({
 
   // Campos para vinculación de folders
   folderIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Folder' }],
+  // Tipo de proceso (P21/P22): copia del vigente en causas-tipo-proceso (tipo-proceso-worker).
+  tipoProceso: {
+    tipo: { type: String, default: null },
+    fuente: { type: String, default: null },
+    fecha: { type: Date, default: null },
+    actualizadoAt: { type: Date, default: null },
+  },
   userCausaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   update: { type: Boolean, default: true },
   userUpdatesEnabled: [{
