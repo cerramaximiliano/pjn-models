@@ -19,13 +19,13 @@ const evidencia = new mongoose.Schema(
         tipo: { type: String, enum: ["ordinario", "sumario", "especial"], required: true },
         fuente: {
             type: String,
-            enum: ["expreso", "plazo_demanda", "plazo_agravios", "objeto", "objeto_especial", "norma", "operador"],
+            enum: ["expreso", "plazo_demanda", "plazo_agravios", "objeto", "objeto_especial", "norma", "usuario", "operador"],
             required: true,
         },
         movementId: { type: String, default: null }, // `${causaId}:${sourceId}` de pjn-movements
         fecha: { type: Date, default: null }, // fecha del movimiento o del cambio del operador (null: objeto, norma)
         frase: { type: String, default: null },
-        operador: { type: String, default: null }, // correo del admin si fuente = 'operador'
+        operador: { type: String, default: null }, // correo del admin (fuente operador) o userId (fuente usuario)
     },
     { _id: false }
 );

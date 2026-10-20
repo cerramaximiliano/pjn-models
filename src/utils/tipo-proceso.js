@@ -26,7 +26,12 @@
  *     SUMARISIMO, o es de un proceso especial.
  *   - 'norma': CNT sin otra señal = ordinario de la ley 18.345 (el
  *     procedimiento laboral no distingue tipos; los sumarísimos laborales, por
- *     art. 498 CPCCN, se detectan por objeto o texto).
+ *     art. 498 CPCCN, se detectan por objeto o texto); CSS sin otra señal =
+ *     ordinario del CPCCN (reajustes y demás previsionales, indicado por el
+ *     usuario el 20/10).
+ * Por encima de los textos, la de un usuario que lo indicó en su carpeta
+ * ('usuario', una por usuario; gana la más reciente) y, por encima de todo, la
+ * del operador de la admin.
  * Además, sin tipo, una `sugerencia` por objeto (daños y perjuicios, cobro de
  * sumas…: típicamente ordinarios) que solo ve el operador: no habilita cálculo.
  *
@@ -128,6 +133,7 @@ function detectarEnObjeto(objeto) {
 /** Tipo por la norma del fuero (CNT: ordinario de la ley 18.345). */
 function tipoPorNorma(fuero) {
 	if (fuero === 'CNT') return { tipo: 'ordinario', fuente: 'norma', frase: 'Procedimiento laboral (ley 18.345)' };
+	if (fuero === 'CSS') return { tipo: 'ordinario', fuente: 'norma', frase: 'Previsional: proceso ordinario (CPCCN)' };
 	return null;
 }
 
@@ -139,11 +145,12 @@ function sugerirPorObjeto(objeto) {
 }
 
 // Rango de cada fuente en resolverTipo (mayor gana; a igual rango, la más reciente).
-const RANGO = { operador: 3, expreso: 2, plazo_demanda: 2, plazo_agravios: 2, objeto: 1, objeto_especial: 1, norma: 0 };
+const RANGO = { operador: 4, usuario: 3, expreso: 2, plazo_demanda: 2, plazo_agravios: 2, objeto: 1, objeto_especial: 1, norma: 0 };
 
 /**
  * Tipo vigente a partir de las evidencias de una causa: la del operador gana;
- * después, la más reciente de los textos; después, el objeto; al final, la norma.
+ * después, la de un usuario (la más reciente); después, la más reciente de los
+ * textos; después, el objeto; al final, la norma.
  * @param {Array<{tipo, fuente, fecha}>} evidencias
  * @returns {{tipo, fuente, fecha, ...}|null}
  */
@@ -159,9 +166,12 @@ function resolverTipo(evidencias) {
 const hayConflicto = (evidencias) => new Set((evidencias || []).filter((e) => e.fuente !== 'norma').map((e) => e.tipo)).size > 1;
 
 const MAX_EVIDENCIAS = 10;
-const FIJAS = ['operador', 'objeto', 'objeto_especial', 'norma'];
-// Una sola evidencia por "lugar": cada texto (fuente + movimiento), el objeto, la norma, el operador.
-const lugar = (e) => (e.fuente === 'objeto' || e.fuente === 'objeto_especial' ? 'objeto' : FIJAS.includes(e.fuente) ? e.fuente : `${e.fuente}:${e.movementId || ''}`);
+const FIJAS = ['operador', 'usuario', 'objeto', 'objeto_especial', 'norma'];
+const CON_FECHA = (f) => !FIJAS.includes(f) || f === 'operador' || f === 'usuario';
+// Una sola evidencia por "lugar": cada texto (fuente + movimiento), el objeto, la norma, el operador, cada usuario.
+const lugar = (e) => (e.fuente === 'objeto' || e.fuente === 'objeto_especial' ? 'objeto'
+	: e.fuente === 'usuario' ? `usuario:${e.operador || ''}`
+		: FIJAS.includes(e.fuente) ? e.fuente : `${e.fuente}:${e.movementId || ''}`);
 
 /**
  * Suma una evidencia a la causa y recalcula el tipo vigente (upsert). Sirve
@@ -177,12 +187,12 @@ async function registrarEvidencia(coleccion, { causaId, fuero, evidencia, sugere
 	const nueva = { movementId: null, frase: null, operador: null, ...evidencia };
 	// Objeto y norma no tienen fecha (no compiten por fecha con los textos: rango propio).
 	const anterior = (previo?.evidencias || []).find((e) => lugar(e) === lugar(nueva));
-	if (!FIJAS.includes(nueva.fuente) || nueva.fuente === 'operador') nueva.fecha = nueva.fecha ? new Date(nueva.fecha) : new Date();
+	if (CON_FECHA(nueva.fuente)) nueva.fecha = nueva.fecha ? new Date(nueva.fecha) : new Date();
 	else nueva.fecha = null;
 	const lista = (previo?.evidencias || []).filter((e) => lugar(e) !== lugar(nueva));
 	lista.push(nueva);
 	lista.sort((a, b) => new Date(a.fecha || 0) - new Date(b.fecha || 0));
-	// Las fijas (operador, objeto, norma) no se recortan nunca.
+	// Las fijas (operador, usuarios, objeto, norma) no se recortan nunca.
 	const fijas = lista.filter((e) => FIJAS.includes(e.fuente));
 	const textos = lista.filter((e) => !FIJAS.includes(e.fuente));
 	const evidencias = [...textos.slice(-(MAX_EVIDENCIAS - fijas.length)), ...fijas];
@@ -228,10 +238,24 @@ async function registrarEvidencia(coleccion, { causaId, fuero, evidencia, sugere
  * @returns {Promise<{tipo, fuente, fecha, cambio: boolean, conflicto: boolean}|null>} null si la causa no tiene documento
  */
 async function quitarOperador(coleccion, causaId) {
+	return quitarEvidencia(coleccion, causaId, (e) => e.fuente === 'operador');
+}
+
+/**
+ * Quita la indicación de un usuario (la que fijó desde su carpeta) y recalcula.
+ * @param {Collection|Model} coleccion — causas-tipo-proceso
+ * @param {ObjectId} causaId
+ * @param {string} userId
+ */
+async function quitarUsuario(coleccion, causaId, userId) {
+	return quitarEvidencia(coleccion, causaId, (e) => e.fuente === 'usuario' && e.operador === String(userId));
+}
+
+async function quitarEvidencia(coleccion, causaId, quitar) {
 	const c = coleccion && coleccion.collection && typeof coleccion.collection.find === 'function' ? coleccion.collection : coleccion;
 	const previo = await c.findOne({ _id: causaId });
 	if (!previo) return null;
-	const evidencias = (previo.evidencias || []).filter((e) => e.fuente !== 'operador');
+	const evidencias = (previo.evidencias || []).filter((e) => !quitar(e));
 	const vigente = resolverTipo(evidencias);
 	const conflicto = hayConflicto(evidencias);
 	await c.updateOne({ _id: causaId }, {
@@ -305,6 +329,7 @@ module.exports = {
 	resolverTipo,
 	registrarEvidencia,
 	quitarOperador,
+	quitarUsuario,
 	reencolarCausa,
 	propagarTipo,
 };
