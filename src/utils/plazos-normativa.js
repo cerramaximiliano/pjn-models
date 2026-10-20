@@ -14,6 +14,11 @@
  * sumario = sumarísimo) solo aplica a causas de ese tipo. Si el acto matchea
  * una regla con tipo y la causa no tiene tipo conocido, el resultado es
  * `{ requiereTipoProceso: true, ... }` sin plazo: no se propone vencimiento.
+ *
+ * P22: `excluye` descarta apariciones cuyo contexto no es el acto (se busca la
+ * siguiente aparición del mismo patrón) y `proponeVencimiento: false` reconoce
+ * el acto sin proponer vencimiento (`{ sinVencimiento: true, ... }`: revisión
+ * manual).
  */
 
 // Misma normalización que el extractor de plazos expresos: mayúsculas, sin
@@ -34,14 +39,35 @@ function compile(pattern) {
     }
 }
 
-function testMatchers(patterns, texto) {
+const MAX_APARICIONES = 50;
+
+// Oración donde está la aparición (entre puntos seguidos de espacio, para no
+// cortar en "122.336" o "art. 94"; hasta 160 caracteres a cada lado): es el
+// contexto contra el que se prueban las exclusiones.
+function oracion(texto, i, largo) {
+    const antes = texto.slice(Math.max(0, i - 160), i);
+    const corteAntes = antes.lastIndexOf(". ");
+    const desde = corteAntes === -1 ? Math.max(0, i - 160) : i - antes.length + corteAntes + 2;
+    const despues = texto.slice(i + largo, i + largo + 160);
+    const corteDespues = despues.indexOf(". ");
+    return texto.slice(desde, corteDespues === -1 ? i + largo + despues.length : i + largo + corteDespues);
+}
+
+function testMatchers(patterns, texto, excluye = []) {
+    const excl = (excluye || []).map(compile).filter(Boolean);
     for (const p of patterns || []) {
-        const re = compile(p);
-        if (!re) continue;
-        const m = re.exec(texto);
-        if (m) {
+        const base = compile(p);
+        if (!base) continue;
+        // Sin exclusiones alcanza con la primera aparición; con exclusiones se
+        // recorren las apariciones hasta una cuyo contexto no esté excluido.
+        const re = new RegExp(base.source, base.flags.includes("g") ? base.flags : base.flags + "g");
+        let m;
+        let vueltas = 0;
+        while ((m = re.exec(texto)) && vueltas++ < MAX_APARICIONES) {
             const start = Math.max(0, m.index - 80);
-            return { pattern: p, snippet: texto.slice(start, m.index + m[0].length + 80).trim() };
+            const snippet = texto.slice(start, m.index + m[0].length + 80).trim();
+            if (!excl.length || !excl.some((x) => x.test(oracion(texto, m.index, m[0].length)))) return { pattern: p, snippet };
+            if (m[0].length === 0) re.lastIndex++;
         }
     }
     return null;
@@ -70,7 +96,8 @@ function matchObjeto(reglaObjetos, objetoNorm) {
  * @param {string} [input.tipoProceso] — 'ordinario' | 'sumario' | null (desconocido)
  * @returns {Object|null} — { clave, acto, label, plazoDias, tipoPlazo, norma,
  *   tipoProceso, matchedPattern, matchedIn: 'texto'|'detalle', snippet, verificado }
- *   | { requiereTipoProceso: true, clave, acto, label, plazoDias: null, ... } | null
+ *   | { requiereTipoProceso: true, clave, acto, label, plazoDias: null, ... }
+ *   | { sinVencimiento: true, clave, acto, label, plazoDias: null, ... } | null
  */
 function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = null }) {
     const t = texto ? norm(texto) : null;
@@ -88,11 +115,11 @@ function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = n
         let hit = null;
         let matchedIn = null;
         if (t && r.matchers && r.matchers.length) {
-            hit = testMatchers(r.matchers, t);
+            hit = testMatchers(r.matchers, t, r.excluye);
             if (hit) matchedIn = "texto";
         }
         if (!hit && d && r.matchersDetalle && r.matchersDetalle.length) {
-            hit = testMatchers(r.matchersDetalle, d);
+            hit = testMatchers(r.matchersDetalle, d, r.excluye);
             if (hit) matchedIn = "detalle";
         }
         if (hit && r.tipoProceso && !tipoProceso) {
@@ -106,6 +133,22 @@ function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = n
                 tipoPlazo: r.tipoPlazo || "habiles",
                 norma: r.norma,
                 verificado: false,
+                matchedPattern: hit.pattern,
+                matchedIn,
+                snippet: hit.snippet,
+            };
+        }
+        if (hit && r.proponeVencimiento === false) {
+            // Acto reconocido, sin plazo identificable: revisión manual.
+            return {
+                sinVencimiento: true,
+                clave: r._id,
+                acto: r.acto,
+                label: r.label,
+                plazoDias: null,
+                tipoPlazo: r.tipoPlazo || "habiles",
+                norma: r.norma,
+                verificado: r.verificado === true,
                 matchedPattern: hit.pattern,
                 matchedIn,
                 snippet: hit.snippet,

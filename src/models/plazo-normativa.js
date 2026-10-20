@@ -42,6 +42,14 @@ const schema = new mongoose.Schema(
         matchers: { type: [String], default: [] },
         // Regex sobre el `detalle` del movimiento (para docs sin PDF).
         matchersDetalle: { type: [String], default: [] },
+        // Regex de contextos que NO son el acto (P22): si la oración donde
+        // matcheó (hasta 160 caracteres a cada lado) matchea alguno, esa aparición
+        // se descarta y se busca la siguiente. Ej.: honorarios "solicitada",
+        // "por cumplida la intimación".
+        excluye: { type: [String], default: [] },
+        // false = la regla reconoce el acto pero no propone vencimiento: la
+        // cédula va a revisión manual (P22: las genéricas "NOTIFÍQUESE").
+        proponeVencimiento: { type: Boolean, default: true },
 
         plazoDias: { type: Number, required: true },
         tipoPlazo: { type: String, enum: ["habiles", "corridos"], default: "habiles" },
