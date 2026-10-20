@@ -50,6 +50,10 @@ const schema = new mongoose.Schema(
         // false = la regla reconoce el acto pero no propone vencimiento: la
         // cédula va a revisión manual (P22: las genéricas "NOTIFÍQUESE").
         proponeVencimiento: { type: Boolean, default: true },
+        // Instancias a las que aplica (P22): 'primera' | 'camara' | 'corte'.
+        // Vacío = todas. La instancia sale del encabezado de la cédula (el
+        // organismo que la dicta); si no se conoce, la regla aplica igual.
+        instancias: { type: [String], default: [] },
 
         plazoDias: { type: Number, required: true },
         tipoPlazo: { type: String, enum: ["habiles", "corridos"], default: "habiles" },

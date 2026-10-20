@@ -19,6 +19,11 @@
  * siguiente aparición del mismo patrón) y `proponeVencimiento: false` reconoce
  * el acto sin proponer vencimiento (`{ sinVencimiento: true, ... }`: revisión
  * manual).
+ *
+ * Instancia (P22): `instanciaCedula(texto)` lee el organismo del encabezado de
+ * la cédula ("JUZGADO COMERCIAL 5 - SITO EN … HAGO SABER", "CÁMARA NACIONAL DE
+ * APELACIONES DEL TRABAJO - SALA II …"). Una regla con `instancias` solo aplica
+ * a esas; si la instancia de la cédula no se conoce, aplica igual.
  */
 
 // Misma normalización que el extractor de plazos expresos: mayúsculas, sin
@@ -87,6 +92,24 @@ function matchObjeto(reglaObjetos, objetoNorm) {
 }
 
 /**
+ * Instancia que dicta la cédula, por el organismo del encabezado (antes de "HAGO
+ * SABER" / "SE HA DICTADO"). Medido el 20/10 en 150.000 cédulas del laboratorio:
+ * el encabezado está en el 99 %.
+ * @param {string} texto — texto de la cédula (crudo)
+ * @returns {'primera'|'camara'|'corte'|null}
+ */
+function instanciaCedula(texto) {
+    const t = norm(texto);
+    if (!t) return null;
+    const i = t.search(/HAGO SABER|SE HA DICTADO|QUEDA UD/);
+    const h = t.slice(0, i > 0 ? Math.min(i, 1500) : 900);
+    if (/CORTE SUPREMA/.test(h)) return "corte";
+    if (/\bCAMARA\b|\bSALA\b/.test(h)) return "camara";
+    if (/JUZGADO|PRIMERA INSTANCIA|1RA\.? INSTANCIA/.test(h)) return "primera";
+    return null;
+}
+
+/**
  * @param {Array} reglas — docs lean de PlazoNormativa (orden = prioridad asc)
  * @param {Object} input
  * @param {string} [input.texto] — texto de la cédula (crudo; se normaliza acá)
@@ -94,12 +117,13 @@ function matchObjeto(reglaObjetos, objetoNorm) {
  * @param {string} input.fuero — CIV | CSS | CNT | COM | ...
  * @param {string} [input.objeto] — objeto del juicio de la causa (crudo)
  * @param {string} [input.tipoProceso] — 'ordinario' | 'sumario' | null (desconocido)
+ * @param {string} [input.instancia] — 'primera' | 'camara' | 'corte' | null (desconocida)
  * @returns {Object|null} — { clave, acto, label, plazoDias, tipoPlazo, norma,
  *   tipoProceso, matchedPattern, matchedIn: 'texto'|'detalle', snippet, verificado }
  *   | { requiereTipoProceso: true, clave, acto, label, plazoDias: null, ... }
  *   | { sinVencimiento: true, clave, acto, label, plazoDias: null, ... } | null
  */
-function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = null }) {
+function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = null, instancia = null }) {
     const t = texto ? norm(texto) : null;
     const d = detalle ? norm(detalle) : null;
     const o = objeto ? norm(objeto) : null;
@@ -109,6 +133,8 @@ function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = n
         const fueros = r.fuero && r.fuero.length ? r.fuero : ["*"];
         if (!fueros.includes("*") && !fueros.includes(fuero)) continue;
         if (!matchObjeto(r.objetos, o)) continue;
+        // Regla de otra instancia que la de la cédula: no aplica (sin instancia conocida, sí).
+        if (instancia && r.instancias && r.instancias.length && !r.instancias.includes(instancia)) continue;
         // Variante de otro tipo de proceso que el de la causa: no aplica.
         if (r.tipoProceso && tipoProceso && r.tipoProceso !== tipoProceso) continue;
 
@@ -163,6 +189,7 @@ function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = n
                 tipoPlazo: r.tipoPlazo || "habiles",
                 norma: r.norma,
                 tipoProceso: r.tipoProceso || null,
+                instancia: instancia || null,
                 verificado: r.verificado === true,
                 matchedPattern: hit.pattern,
                 matchedIn,
@@ -173,4 +200,4 @@ function clasificarActo(reglas, { texto, detalle, fuero, objeto, tipoProceso = n
     return null;
 }
 
-module.exports = { clasificarActo, _norm: norm };
+module.exports = { clasificarActo, instanciaCedula, _norm: norm };
