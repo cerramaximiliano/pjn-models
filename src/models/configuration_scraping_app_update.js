@@ -55,6 +55,14 @@ const schema = new mongoose.Schema(
       default: 12, // Actualizar documentos más antiguos de 12 horas por defecto
       min: 1
     },
+    // Umbral de lastUpdate por nivel de prioridad de la causa (prioridad.nivel, la escribe el hub).
+    // null = usar last_update_threshold_hours. Ver utils/prioridad-cola.js.
+    threshold_hours_por_nivel: {
+      alta: { type: Number, min: 1, default: 6 },
+      media: { type: Number, min: 1, default: null },
+      baja: { type: Number, min: 1, default: null },
+      archivo: { type: Number, min: 1, default: 72 }
+    },
     captcha: {
       defaultProvider: {
         type: String,

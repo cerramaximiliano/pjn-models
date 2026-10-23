@@ -77,6 +77,8 @@ module.exports = {
 
     // Clasificación de movimientos por tipo de documento (flags de cobertura de texto / prioridades)
     clasificarMovimiento: require("./src/utils/clasificar-movimiento"),
+    // Orden/vencimiento de las colas por prioridad de la causa (app-update, pdf-backfill)
+    prioridadCola: require("./src/utils/prioridad-cola"),
 
     // Guard de drift estructural del HTML del PJN: detecta cambios en la
     // estructura y abre incidentes (PjnHtmlDriftIncident) con dedup. Usado
