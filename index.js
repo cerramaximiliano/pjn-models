@@ -75,6 +75,9 @@ module.exports = {
     // `acumulacion` de las causas.
     acumulacion: require("./src/utils/acumulacion"),
 
+    // Clasificación de movimientos por tipo de documento (flags de cobertura de texto / prioridades)
+    clasificarMovimiento: require("./src/utils/clasificar-movimiento"),
+
     // Guard de drift estructural del HTML del PJN: detecta cambios en la
     // estructura y abre incidentes (PjnHtmlDriftIncident) con dedup. Usado
     // por los 3 repos que scrapean el portal.
