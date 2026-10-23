@@ -567,4 +567,8 @@ schema.add(require("../shared/vinculados-fields"));
 // Decisión de acumular a otra causa (ver shared/acumulacion-fields.js)
 schema.add(require("../shared/acumulacion-fields"));
 
+// Prioridad para las colas (la escribe el hub; los workers solo ordenan). Ver shared/prioridad-fields.js
+schema.add(require("../shared/prioridad-fields"));
+schema.index({ "prioridad.score": -1, lastUpdate: 1 });
+
 module.exports = mongoose.models.CausasSegSocial || mongoose.model("CausasSegSocial", schema);
