@@ -5,14 +5,14 @@
  * para contar elegibles con el mismo criterio.
  *
  * - `umbralesPorNivel(config)`: horas de `lastUpdate` que vencen una causa según su nivel. Default:
- *   alta 6 h, archivo 72 h, media/baja = `last_update_threshold_hours` (general, 12). Se ajusta con
+ *   alta 6 h, archivo 24 h (arranque suave pedido por el dueño; la propuesta decía 72), media/baja = `last_update_threshold_hours` (general, 12). Se ajusta con
  *   `threshold_hours_por_nivel` en configuracion-app-update (null = general).
  * - `filtroLastUpdateVencido(config, now)`: `$or` para el filtro Mongo (causa sin `prioridad` → general).
  * - `ORDEN_COLA`: `prioridad.score` desc (las causas sin prioridad quedan al final), después la más
  *   atrasada. Hace juego con el índice {prioridad.score:-1, lastUpdate:1} de las causas.
  */
 const NIVELES = ['alta', 'media', 'baja', 'archivo'];
-const UMBRAL_DEFAULT = { alta: 6, media: null, baja: null, archivo: 72 };
+const UMBRAL_DEFAULT = { alta: 6, media: null, baja: null, archivo: 24 };
 const GENERAL_DEFAULT = 12;
 
 function umbralesPorNivel(configuration) {

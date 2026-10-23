@@ -61,7 +61,7 @@ const schema = new mongoose.Schema(
       alta: { type: Number, min: 1, default: 6 },
       media: { type: Number, min: 1, default: null },
       baja: { type: Number, min: 1, default: null },
-      archivo: { type: Number, min: 1, default: 72 }
+      archivo: { type: Number, min: 1, default: 24 }
     },
     captcha: {
       defaultProvider: {

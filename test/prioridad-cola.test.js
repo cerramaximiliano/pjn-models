@@ -6,9 +6,9 @@ const { umbralesPorNivel, filtroLastUpdateVencido, ORDEN_COLA, NIVELES } = requi
 const now = new Date('2026-10-23T12:00:00Z');
 const hace = (h) => new Date(now.getTime() - h * 3600 * 1000);
 
-test('umbrales por defecto: alta 6, archivo 72, media/baja = general', () => {
-    assert.deepEqual(umbralesPorNivel({ last_update_threshold_hours: 12 }), { general: 12, alta: 6, media: 12, baja: 12, archivo: 72 });
-    assert.deepEqual(umbralesPorNivel({}), { general: 12, alta: 6, media: 12, baja: 12, archivo: 72 });
+test('umbrales por defecto: alta 6, archivo 24, media/baja = general', () => {
+    assert.deepEqual(umbralesPorNivel({ last_update_threshold_hours: 12 }), { general: 12, alta: 6, media: 12, baja: 12, archivo: 24 });
+    assert.deepEqual(umbralesPorNivel({}), { general: 12, alta: 6, media: 12, baja: 12, archivo: 24 });
     assert.deepEqual(umbralesPorNivel(null).general, 12);
 });
 
@@ -22,7 +22,7 @@ test('filtro: una rama por nivel + sin prioridad + sin lastUpdate', () => {
     assert.equal(f.$or.length, NIVELES.length + 2);
     assert.deepEqual(f.$or[0], { lastUpdate: { $exists: false } });
     assert.deepEqual(f.$or[1], { 'prioridad.nivel': 'alta', lastUpdate: { $lt: hace(6) } });
-    assert.deepEqual(f.$or[4], { 'prioridad.nivel': 'archivo', lastUpdate: { $lt: hace(72) } });
+    assert.deepEqual(f.$or[4], { 'prioridad.nivel': 'archivo', lastUpdate: { $lt: hace(24) } });
     assert.deepEqual(f.$or[5], { 'prioridad.nivel': { $nin: NIVELES }, lastUpdate: { $lt: hace(12) } });
 });
 
