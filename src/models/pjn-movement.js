@@ -211,6 +211,24 @@ const schema = new mongoose.Schema(
             ),
             default: undefined,
         },
+
+        // === Vínculos entre movimientos de la misma causa ===
+        // Los escribe pjn-rag-workers (grafo de vínculos, 25/10/2026) y los lee el
+        // MCP (la-mcp-server) y, más adelante, plazos y el front. Se escriben en los
+        // DOS movimientos (relación directa e inversa), sin repetir dentro del mismo
+        // documento. Cada elemento:
+        //   tipo         — provee | proveido_por | responde | respondido_por |
+        //                  acompana | acompanado_por | parte_de | notifica | notificado_por
+        //   movementId   — _id del movimiento vinculado ('<causaId>:<sourceId>')
+        //   metodo       — cómo se detectó: texto | presentacion | fecha | deo_numero | entidad_fecha
+        //   confianza    — 0–1
+        //   version      — versión del vinculador que lo escribió
+        //   fecha, tipoMovimiento, detalle (≤120) — denormalizados del movimiento vinculado
+        //   presentacion — ISO 'YYYY-MM-DDTHH:mm' del sello [Presentado] (vínculos de escritos)
+        //   parte        — { n, de } cuando el documento es una parte de un grupo
+        // Mixed para que su dueño lo evolucione sin tocar este esquema; detalle del
+        // contrato en la-infra-docs runbooks/rag-por-causa-evaluacion-integral-2026-10-25.md §7.2.
+        vinculos: { type: [mongoose.Schema.Types.Mixed], default: undefined },
     },
     {
         collection: "pjn-movements",
