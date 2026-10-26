@@ -60,6 +60,8 @@ module.exports = {
     // subdocs movimiento[] de Causas a colección propia con _id estable).
     PjnMovement: require("./src/models/pjn-movement"),
     PjnMovementText: require("./src/models/pjn-movement-text"),
+    // Cadenas de prueba por causa (completitud de la prueba): las escribe pjn-rag-workers, las lee el MCP.
+    PjnPrueba: require("./src/models/pjn-prueba"),
 
     // Helper compartido para generar el _id determinístico de PjnMovement.
     // Reutilizable por scrapers, RAG workers, bridge cache→Atlas, etc.
