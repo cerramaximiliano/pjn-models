@@ -34,7 +34,13 @@ const schema = new mongoose.Schema(
             tipo: { type: String },        // ACTOR, DEMANDADO, TERCERO, etc.
             nombre: { type: String },
             tomoFolio: { type: String },
-            iej: { type: String }
+            iej: { type: String },
+            // Solo los trae la API del SCW nuevo (GET /intervinientes/{id}); null si la fuente es el SCW clásico.
+            idScw: { type: Number },                 // id del interviniente en el SCW
+            documento: { type: String },
+            dni: { type: String },
+            personaJuridica: { type: Boolean },
+            identidadReservada: { type: Boolean }
         },
 
         // Datos del letrado (si tipoInterviniente = 'LETRADO')
@@ -44,6 +50,15 @@ const schema = new mongoose.Schema(
             matricula: { type: String },   // Tomo: X Folio: Y - COLEGIO
             estadoIej: { type: String },   // CONSTITUIDO, NO CONSTITUIDO
             iej: { type: String },         // Identificador Electrónico Judicial del letrado
+            // Solo los trae la API del SCW nuevo; el CUIT viene aunque no haya domicilio electrónico constituido.
+            idScw: { type: Number },
+            cuitcuil: { type: String },
+            domicilioElectronicoConstituido: { type: Boolean },
+            principal: { type: Boolean },
+            defensoria: { type: String },  // nombre del defensor/a en defensorías y asesorías (sin tomo/folio)
+            federal: { type: Boolean },
+            tomo: { type: String },
+            folio: { type: String },
             parteRepresentada: {           // Referencia a la parte que representa (retrocompatibilidad)
                 intervinienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'Interviniente' },
                 tipo: { type: String },
@@ -71,6 +86,11 @@ const schema = new mongoose.Schema(
         source: {
             type: String,
             default: 'extra-info-worker'
+        },
+        // De dónde salió la lectura: 'scw-clasico' (HTML) o 'scw-api'. Sin valor = clásico (docs anteriores).
+        origen: {
+            type: String,
+            enum: ['scw-clasico', 'scw-api']
         }
     },
     {
@@ -85,6 +105,7 @@ schema.index({ 'expediente.number': 1, 'expediente.year': 1, 'expediente.fuero':
 schema.index({ 'parte.nombre': 1 });
 schema.index({ 'letrado.nombre': 1 });
 schema.index({ 'letrado.iej': 1 });
+schema.index({ 'letrado.cuitcuil': 1 });
 schema.index({ 'letrado.parteRepresentada.intervinienteId': 1 });
 schema.index({ 'letrado.partesRepresentadas.intervinienteId': 1 });
 schema.index({ nombreNormalizado: 'text' });
