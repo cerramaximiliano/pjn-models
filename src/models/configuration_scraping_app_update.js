@@ -5,7 +5,8 @@ const schema = new mongoose.Schema(
     fuero: {
       type: String,
       required: true,
-      enum: ['CIV', 'CSS', 'CNT', 'COM']
+      // 'OTROS' = la config del modo 'otros' (todos los fueros sin worker propio)
+      enum: ['CIV', 'CSS', 'CNT', 'COM', 'OTROS']
     },
     worker_id: {
       type: String,
@@ -14,7 +15,8 @@ const schema = new mongoose.Schema(
     },
     update_mode: {
       type: String,
-      enum: ['all', 'civil', 'ss', 'trabajo', 'comercial'],
+      // 'otros' = todos los fueros que no son civil/ss/trabajo/comercial (pjn-workers utils/fueros-pjn.js)
+      enum: ['all', 'civil', 'ss', 'trabajo', 'comercial', 'otros'],
       default: 'all',
       required: true
     },

@@ -60,7 +60,10 @@ const workerHourlyStatsSchema = new mongoose.Schema({
   fuero: {
     type: String,
     required: true,
-    enum: ['CIV', 'COM', 'CNT', 'CSS', 'CAF', 'CCF', 'CNE', 'CPE', 'CFP', 'CCC', 'CSJ', 'ALL'],
+    enum: ['CIV', 'COM', 'CNT', 'CSS', 'CAF', 'CCF', 'CNE', 'CPE', 'CFP', 'CCC', 'CSJ', 'CPF', 'CPN',
+      'FBB', 'FCR', 'FCB', 'FCT', 'FGR', 'FLP', 'FMP', 'FMZ', 'FPO', 'FPA', 'FRE', 'FSA', 'FRO', 'FSM', 'FTU',
+      // 'OTROS' = fila del manager para el modo 'otros' de app-update (suma de los fueros sin worker propio)
+      'OTROS', 'ALL'],
     index: true
   },
 

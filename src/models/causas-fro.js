@@ -423,4 +423,14 @@ CausasFROSchema.statics.safeSave = async function(docData) {
 CausasFROSchema.add(require("../shared/sentencias-scan-fields"));
 CausasFROSchema.add(require("../shared/etapa-procesal-fields"));
 
+// Mismo equipamiento que civil/comercial/ss/trabajo para que app-update (modo
+// 'otros' de pjn-workers) pueda trabajar estos fueros.
+CausasFROSchema.add(require("../shared/incidentes-fields"));
+CausasFROSchema.add(require("../shared/vinculados-fields"));
+CausasFROSchema.add(require("../shared/acumulacion-fields"));
+CausasFROSchema.add(require("../shared/prioridad-fields"));
+CausasFROSchema.add(require("../shared/app-update-fields"));
+CausasFROSchema.index({ "prioridad.score": -1, lastUpdate: 1 });
+CausasFROSchema.index({ needsPdfBackfill: 1 }, { partialFilterExpression: { needsPdfBackfill: true } });
+
 module.exports = mongoose.models.CausasFRO || mongoose.model("CausasFRO", CausasFROSchema);

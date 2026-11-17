@@ -427,4 +427,14 @@ CausasCPESchema.statics.safeSave = async function(docData) {
 CausasCPESchema.add(require("../shared/sentencias-scan-fields"));
 CausasCPESchema.add(require("../shared/etapa-procesal-fields"));
 
+// Mismo equipamiento que civil/comercial/ss/trabajo para que app-update (modo
+// 'otros' de pjn-workers) pueda trabajar estos fueros.
+CausasCPESchema.add(require("../shared/incidentes-fields"));
+CausasCPESchema.add(require("../shared/vinculados-fields"));
+CausasCPESchema.add(require("../shared/acumulacion-fields"));
+CausasCPESchema.add(require("../shared/prioridad-fields"));
+CausasCPESchema.add(require("../shared/app-update-fields"));
+CausasCPESchema.index({ "prioridad.score": -1, lastUpdate: 1 });
+CausasCPESchema.index({ needsPdfBackfill: 1 }, { partialFilterExpression: { needsPdfBackfill: true } });
+
 module.exports = mongoose.models.CausasCPE || mongoose.model("CausasCPE", CausasCPESchema);

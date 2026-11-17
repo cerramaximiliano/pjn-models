@@ -429,4 +429,14 @@ CausasCCCSchema.statics.safeSave = async function(docData) {
 CausasCCCSchema.add(require("../shared/sentencias-scan-fields"));
 CausasCCCSchema.add(require("../shared/etapa-procesal-fields"));
 
+// Mismo equipamiento que civil/comercial/ss/trabajo para que app-update (modo
+// 'otros' de pjn-workers) pueda trabajar estos fueros.
+CausasCCCSchema.add(require("../shared/incidentes-fields"));
+CausasCCCSchema.add(require("../shared/vinculados-fields"));
+CausasCCCSchema.add(require("../shared/acumulacion-fields"));
+CausasCCCSchema.add(require("../shared/prioridad-fields"));
+CausasCCCSchema.add(require("../shared/app-update-fields"));
+CausasCCCSchema.index({ "prioridad.score": -1, lastUpdate: 1 });
+CausasCCCSchema.index({ needsPdfBackfill: 1 }, { partialFilterExpression: { needsPdfBackfill: true } });
+
 module.exports = mongoose.models.CausasCCC || mongoose.model("CausasCCC", CausasCCCSchema);
