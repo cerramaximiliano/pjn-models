@@ -12,13 +12,15 @@ const stateSnapshotSchema = new mongoose.Schema({
     civil: { type: Number, default: 0 },
     ss: { type: Number, default: 0 },
     trabajo: { type: Number, default: 0 },
-    comercial: { type: Number, default: 0 }
+    comercial: { type: Number, default: 0 },
+    otros: { type: Number, default: 0 }
   },
   pending: {
     civil: { type: Number, default: 0 },
     ss: { type: Number, default: 0 },
     trabajo: { type: Number, default: 0 },
-    comercial: { type: Number, default: 0 }
+    comercial: { type: Number, default: 0 },
+    otros: { type: Number, default: 0 }
   },
   systemResources: {
     cpuUsage: { type: Number },
@@ -66,7 +68,8 @@ const managerConfigSchema = new mongoose.Schema({
       civil: { type: String, default: 'pjn-app-update-civil' },
       ss: { type: String, default: 'pjn-app-update-ss' },
       trabajo: { type: String, default: 'pjn-app-update-trabajo' },
-      comercial: { type: String, default: 'pjn-app-update-comercial' }
+      comercial: { type: String, default: 'pjn-app-update-comercial' },
+      otros: { type: String, default: 'pjn-app-update-otros' }
     }
   },
 
@@ -77,7 +80,8 @@ const managerConfigSchema = new mongoose.Schema({
       civil: { type: Number, default: 0 },
       ss: { type: Number, default: 0 },
       trabajo: { type: Number, default: 0 },
-      comercial: { type: Number, default: 0 }
+      comercial: { type: Number, default: 0 },
+      otros: { type: Number, default: 0 }
     },
 
     // Documentos pendientes por fuero
@@ -85,7 +89,8 @@ const managerConfigSchema = new mongoose.Schema({
       civil: { type: Number, default: 0 },
       ss: { type: Number, default: 0 },
       trabajo: { type: Number, default: 0 },
-      comercial: { type: Number, default: 0 }
+      comercial: { type: Number, default: 0 },
+      otros: { type: Number, default: 0 }
     },
 
     // Workers óptimos calculados
@@ -93,7 +98,8 @@ const managerConfigSchema = new mongoose.Schema({
       civil: { type: Number, default: 0 },
       ss: { type: Number, default: 0 },
       trabajo: { type: Number, default: 0 },
-      comercial: { type: Number, default: 0 }
+      comercial: { type: Number, default: 0 },
+      otros: { type: Number, default: 0 }
     },
 
     // Recursos del sistema

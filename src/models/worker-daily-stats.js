@@ -91,7 +91,8 @@ const workerDailyStatsSchema = new mongoose.Schema({
   fuero: {
     type: String,
     required: true,
-    enum: ['CIV', 'COM', 'CNT', 'CSS', 'CAF', 'CCF', 'CNE', 'CPE', 'CFP', 'CCC', 'CSJ'],
+    enum: ['CIV', 'COM', 'CNT', 'CSS', 'CAF', 'CCF', 'CNE', 'CPE', 'CFP', 'CCC', 'CSJ', 'CPF', 'CPN',
+      'FBB', 'FCR', 'FCB', 'FCT', 'FGR', 'FLP', 'FMP', 'FMZ', 'FPO', 'FPA', 'FRE', 'FSA', 'FRO', 'FSM', 'FTU'],
     index: true
   },
 

@@ -423,4 +423,14 @@ CausasFSASchema.statics.safeSave = async function(docData) {
 CausasFSASchema.add(require("../shared/sentencias-scan-fields"));
 CausasFSASchema.add(require("../shared/etapa-procesal-fields"));
 
+// Mismo equipamiento que civil/comercial/ss/trabajo para que app-update (modo
+// 'otros' de pjn-workers) pueda trabajar estos fueros.
+CausasFSASchema.add(require("../shared/incidentes-fields"));
+CausasFSASchema.add(require("../shared/vinculados-fields"));
+CausasFSASchema.add(require("../shared/acumulacion-fields"));
+CausasFSASchema.add(require("../shared/prioridad-fields"));
+CausasFSASchema.add(require("../shared/app-update-fields"));
+CausasFSASchema.index({ "prioridad.score": -1, lastUpdate: 1 });
+CausasFSASchema.index({ needsPdfBackfill: 1 }, { partialFilterExpression: { needsPdfBackfill: true } });
+
 module.exports = mongoose.models.CausasFSA || mongoose.model("CausasFSA", CausasFSASchema);
