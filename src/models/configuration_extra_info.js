@@ -24,9 +24,16 @@ const schema = new mongoose.Schema(
     // ========== CONFIGURACIÓN DE PROCESAMIENTO ==========
     processing_mode: {
       type: String,
-      enum: ['all', 'civil', 'ss', 'trabajo', 'comercial'],
+      // 'all' = civil/ss/trabajo/comercial (+ los demás fueros si otros_fueros.enabled); 'otros' = solo los demás
+      enum: ['all', 'civil', 'ss', 'trabajo', 'comercial', 'otros'],
       default: 'all',
       required: true
+    },
+    // Fueros sin worker propio (CSJ, CAF, CCF, penales, federales del interior; pjn-workers
+    // utils/fueros-pjn.js). Apagado por defecto: con processing_mode 'all' el worker los suma
+    // recién cuando enabled es true.
+    otros_fueros: {
+      enabled: { type: Boolean, default: false }
     },
     batch_size: {
       type: Number,
@@ -306,7 +313,8 @@ const schema = new mongoose.Schema(
         civil: { type: Number, default: 0 },
         comercial: { type: Number, default: 0 },
         segsocial: { type: Number, default: 0 },
-        trabajo: { type: Number, default: 0 }
+        trabajo: { type: Number, default: 0 },
+        otros: { type: Number, default: 0 }
       },
       // Ciclos ejecutados ese día
       cyclesRun: {
@@ -608,7 +616,7 @@ schema.statics.getOrCreateDailyStat = async function(initialEligible = null) {
       pending: initialEligible || 0,
       intervinientesExtracted: 0,
       contactsSynced: 0,
-      byFuero: { civil: 0, comercial: 0, segsocial: 0, trabajo: 0 },
+      byFuero: { civil: 0, comercial: 0, segsocial: 0, trabajo: 0, otros: 0 },
       cyclesRun: 0,
       createdAt: new Date(),
       updatedAt: new Date()

@@ -20,6 +20,10 @@ module.exports = {
     // Huérfana de Mis Causas: credencial deshabilitada + carpeta viva. La mantiene
     // el reconcile de pjn-mis-causas; app-update la toma por el buscador público.
     orphanedAt: { type: Date, default: null },
+    // Intervinientes (extra-info-worker / pjn-intervinientes-publicas): la causa ya fue leída
+    // y cuándo. Los intervinientes en sí van a la colección `intervinientes`.
+    detailsLoaded: { type: Boolean, default: false, index: true },
+    detailsLastUpdate: { type: Date },
     // Contador diario de errores (espeja updateStats.today).
     errorStats: {
         count: { type: Number, default: 0 },
