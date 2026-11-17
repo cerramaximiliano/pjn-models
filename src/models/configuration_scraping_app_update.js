@@ -61,6 +61,11 @@ const schema = new mongoose.Schema(
     // utils/app-update-pool.js, pasadasDeOrigen). Plano: vale para todos los niveles de
     // prioridad. null = el mismo umbral que las públicas.
     threshold_hours_huerfanas: { type: Number, min: 1, default: null },
+    // Hora (0–23, Argentina) desde la que se leen las HUÉRFANAS de Mis Causas, una vez por día:
+    // antes de esa hora no se toman y cada una se lee una sola vez desde esa hora. Con valor, las
+    // huérfanas van en una pasada aparte, después de las públicas, en cualquier modo. null = sin
+    // horario (umbral de horas). pjn-workers utils/app-update-pool.js.
+    huerfanas_hora_desde: { type: Number, min: 0, max: 23, default: null },
     // Umbral de lastUpdate por nivel de prioridad de la causa (prioridad.nivel, la escribe el hub).
     // null = usar last_update_threshold_hours. Ver utils/prioridad-cola.js.
     threshold_hours_por_nivel: {
