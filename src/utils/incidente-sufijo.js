@@ -14,8 +14,45 @@
  * cualquier tramo no numérico NO son incidentes numerados → null.
  */
 
-const CELDA_EXPEDIENTE = /^\s*(?:([A-Z]{2,5})\s*)?0*(\d+)\s*\/\s*(\d{4})(?:\s*\/\s*(\S+))?\s*$/;
+// El "-00" opcional tras el año es el formato de la Corte ("CSJ 000146/2025-00") = principal.
+const CELDA_EXPEDIENTE = /^\s*(?:([A-Z]{2,5})\s*)?0*(\d+)\s*\/\s*(\d{4})(?:-00)?(?:\s*\/\s*(\S+))?\s*$/;
 const SUFIJO_NUMERADO = /^\d+(?:\/\d+)*\/?$/;
+const TRAMO_NUMERICO = /^\d+$/;
+const TRAMO_ALFANUMERICO = /^[A-Za-z]{1,5}\d*$/;
+// Escritos (ES01, ES02…): no son causas, nunca candidatas de un pivote.
+const TRAMO_ESCRITO = /^ES\d*$/i;
+
+/**
+ * Sufijo canónico de CUALQUIER incidente/legajo (no solo los numerados): tramos
+ * numéricos sin ceros a la izquierda, tramos alfanuméricos ("TO01", "CA001", "ES01")
+ * en mayúsculas tal cual. Es la identidad de las causas abiertas por la lista de
+ * selección del buscador (accessVia 'busqueda') y coincide con lo que guarda Mis Causas.
+ *
+ * "073/1" → "73/1"; "TO01/33/1/1/1" → igual; "to01" → "TO01"; "1/" → "1";
+ * ""/null/"-00" → null (principal); un tramo con otra forma → null.
+ * No reemplaza a normalizarIncidente, que sigue significando "incidente numerado".
+ */
+function canonizarSufijo(raw) {
+    if (raw === null || raw === undefined) return null;
+    const s = String(raw).trim();
+    if (!s || s === "-00") return null;
+    const tramos = s.split("/").map((t) => t.trim()).filter(Boolean);
+    if (tramos.length === 0) return null;
+    const out = [];
+    for (const t of tramos) {
+        if (TRAMO_NUMERICO.test(t)) out.push(String(Number(t)));
+        else if (TRAMO_ALFANUMERICO.test(t)) out.push(t.toUpperCase());
+        else return null;
+    }
+    return out.join("/");
+}
+
+/** true si el sufijo canónico es un escrito (último tramo ESnn). */
+function esEscrito(sufijoCanonico) {
+    if (!sufijoCanonico) return false;
+    const tramos = String(sufijoCanonico).split("/");
+    return TRAMO_ESCRITO.test(tramos[tramos.length - 1]);
+}
 
 /** "01/2" → "1/2"; "1/" → "1"; "CA001" → null; "" → null. */
 function normalizarIncidente(raw) {
@@ -35,6 +72,8 @@ function esIncidenteNumerado(raw) {
  * "COM 023063/2015/1" → { fuero:'COM', number:23063, year:2015, sufijo:'1', incidente:'1' }
  * "35258/2010/CA001"  → { fuero:null, number:35258, year:2010, sufijo:'CA001', incidente:null }
  * "COM 23063/2015"    → { ..., sufijo:null, incidente:null }   (el principal)
+ * "CSJ 000146/2025-00" → { fuero:'CSJ', number:146, year:2025, sufijo:null, ... } (principal)
+ * `canonico` = canonizarSufijo(sufijo): "35258/2010/CA001" → 'CA001'.
  * Devuelve null si no tiene la forma número/año.
  */
 function parseExpedienteCelda(celda) {
@@ -47,6 +86,7 @@ function parseExpedienteCelda(celda) {
         year: Number(m[3]),
         sufijo,
         incidente: sufijo ? normalizarIncidente(sufijo) : null,
+        canonico: sufijo ? canonizarSufijo(sufijo) : null,
     };
 }
 
@@ -58,4 +98,4 @@ function esDeLaFamilia(parsed, principal) {
     return true;
 }
 
-module.exports = { normalizarIncidente, esIncidenteNumerado, parseExpedienteCelda, esDeLaFamilia };
+module.exports = { normalizarIncidente, esIncidenteNumerado, canonizarSufijo, esEscrito, parseExpedienteCelda, esDeLaFamilia };

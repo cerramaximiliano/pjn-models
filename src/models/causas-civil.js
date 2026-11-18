@@ -568,6 +568,8 @@ schema.add(require("../shared/etapa-procesal-fields"));
 schema.add(require("../shared/incidentes-fields"));
 // Pestaña Vinculados del detalle público, solo en principales (ver shared/vinculados-fields.js)
 schema.add(require("../shared/vinculados-fields"));
+// Pivote de la lista de selección del buscador (ver shared/pivote-lista-fields.js)
+schema.add(require("../shared/pivote-lista-fields"));
 // Decisión de acumular a otra causa (ver shared/acumulacion-fields.js)
 schema.add(require("../shared/acumulacion-fields"));
 

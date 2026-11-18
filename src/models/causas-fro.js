@@ -427,6 +427,8 @@ CausasFROSchema.add(require("../shared/etapa-procesal-fields"));
 // 'otros' de pjn-workers) pueda trabajar estos fueros.
 CausasFROSchema.add(require("../shared/incidentes-fields"));
 CausasFROSchema.add(require("../shared/vinculados-fields"));
+// Pivote de la lista de selección del buscador (ver shared/pivote-lista-fields.js)
+CausasFROSchema.add(require("../shared/pivote-lista-fields"));
 CausasFROSchema.add(require("../shared/acumulacion-fields"));
 CausasFROSchema.add(require("../shared/prioridad-fields"));
 CausasFROSchema.add(require("../shared/app-update-fields"));
