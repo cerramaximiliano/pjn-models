@@ -420,6 +420,8 @@ CausasCPFSchema.add(require("../shared/etapa-procesal-fields"));
 // 'otros' de pjn-workers) pueda trabajar estos fueros.
 CausasCPFSchema.add(require("../shared/incidentes-fields"));
 CausasCPFSchema.add(require("../shared/vinculados-fields"));
+// Pivote de la lista de selección del buscador (ver shared/pivote-lista-fields.js)
+CausasCPFSchema.add(require("../shared/pivote-lista-fields"));
 CausasCPFSchema.add(require("../shared/acumulacion-fields"));
 CausasCPFSchema.add(require("../shared/prioridad-fields"));
 CausasCPFSchema.add(require("../shared/app-update-fields"));
